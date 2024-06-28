@@ -45,14 +45,6 @@ const Map = () => {
         setMapLoaded(true);
     };
 
-    // Define the custom car icon
-    const carIcon = {
-        url: 'https://img.icons8.com/?size=100&id=qzKNWF9sbXPV&format=png&color=000000',
-        scaledSize: new google.maps.Size(20, 20), // Scale size of the icon
-        origin: new google.maps.Point(0, 0), // The origin for this image
-        anchor: new google.maps.Point(20, 40) // The anchor for this image
-    };
-
     return (
         <LoadScript googleMapsApiKey={googleMapsApiKey}>
             <MapContainer>
@@ -62,7 +54,18 @@ const Map = () => {
                     zoom={15}
                     onLoad={handleLoad}
                 >
-                    {mapLoaded && map && <Marker position={location} icon={carIcon} />}
+                    {mapLoaded && map && (
+                        <Marker
+                            key={`${location.lat}-${location.lng}`}
+                            position={location}
+                            icon={{
+                                url: 'https://img.icons8.com/?size=100&id=qzKNWF9sbXPV&format=png&color=000000',
+                                scaledSize: new google.maps.Size(20, 20),
+                                origin: new google.maps.Point(0, 0),
+                                anchor: new google.maps.Point(10, 10),
+                            }}
+                        />
+                    )}
                 </GoogleMap>
             </MapContainer>
         </LoadScript>
