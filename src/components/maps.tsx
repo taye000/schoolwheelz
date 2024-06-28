@@ -21,15 +21,15 @@ const Map = () => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    setLocation({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                    });
+                    const { latitude, longitude } = position.coords;
+                    setLocation({ lat: latitude, lng: longitude });
                 },
                 (error) => {
                     console.error('Error obtaining location', error);
                 }
             );
+        } else {
+            console.error('Geolocation is not supported by this browser.');
         }
     }, []);
 
@@ -43,14 +43,6 @@ const Map = () => {
         setMap(mapInstance);
     };
 
-    let carIcon = null;
-    if (typeof window !== 'undefined' && window.google && window.google.maps) {
-        carIcon = {
-            url: 'https://emojicombos.com/files/apple-emojis/vehicles-transport/apple-car_1f697.png',
-            scaledSize: new window.google.maps.Size(40, 40),
-        };
-    }
-
     return (
         <LoadScript googleMapsApiKey={googleMapsApiKey}>
             <MapContainer>
@@ -60,7 +52,7 @@ const Map = () => {
                     zoom={15}
                     onLoad={handleLoad}
                 >
-                    {map && carIcon && <Marker position={location} icon={carIcon} />}
+                    {map && <Marker position={location} />}
                 </GoogleMap>
             </MapContainer>
         </LoadScript>

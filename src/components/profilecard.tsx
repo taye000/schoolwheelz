@@ -22,13 +22,12 @@ const ProfileCard = () => {
             <StyledPaper elevation={3}>
                 <Avatar src={driverProfile.picture} alt="Profile" sx={{ width: 100, height: 100 }} />
                 <ProfileInfo>
-                    <Typography variant="h6">Driver Profile</Typography>
                     <ProfileDetail><strong>Name:</strong> {driverProfile.name}</ProfileDetail>
                     <ProfileDetail><strong>Phone:</strong> {driverProfile.phone}</ProfileDetail>
                     <ProfileDetail><strong>Sex:</strong> {driverProfile.sex}</ProfileDetail>
                     <ProfileDetail><strong>Age:</strong> {driverProfile.age}</ProfileDetail>
-                    <ProfileDetail><strong>Car Registration:</strong> {driverProfile.carRegistration}</ProfileDetail>
-                    <ProfileDetail><strong>Car Model:</strong> {driverProfile.carModel}</ProfileDetail>
+                    <ProfileDetail><strong>Car Reg:</strong> {driverProfile.carRegistration}</ProfileDetail>
+                    <ProfileDetail><strong>Model:</strong> {driverProfile.carModel}</ProfileDetail>
                     <CarImage src={driverProfile.carPicture} alt="Car" />
                     <ProfileDetail><strong>Rating:</strong> {driverProfile.rating}</ProfileDetail>
                 </ProfileInfo>
