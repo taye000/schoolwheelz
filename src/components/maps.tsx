@@ -16,6 +16,7 @@ const MapContainer = styled.div`
 const Map = () => {
     const [location, setLocation] = useState({ lat: -3.745, lng: -38.523 });
     const [map, setMap] = useState<google.maps.Map | null>(null);
+    const [mapLoaded, setMapLoaded] = useState(false);
 
     useEffect(() => {
         if (navigator.geolocation) {
@@ -41,6 +42,15 @@ const Map = () => {
 
     const handleLoad = (mapInstance: google.maps.Map | null) => {
         setMap(mapInstance);
+        setMapLoaded(true);
+    };
+
+    // Define the custom car icon
+    const carIcon = {
+        url: 'https://img.icons8.com/?size=100&id=qzKNWF9sbXPV&format=png&color=000000',
+        scaledSize: new google.maps.Size(20, 20), // Scale size of the icon
+        origin: new google.maps.Point(0, 0), // The origin for this image
+        anchor: new google.maps.Point(20, 40) // The anchor for this image
     };
 
     return (
@@ -52,7 +62,7 @@ const Map = () => {
                     zoom={15}
                     onLoad={handleLoad}
                 >
-                    {map && <Marker position={location} />}
+                    {mapLoaded && map && <Marker position={location} icon={carIcon} />}
                 </GoogleMap>
             </MapContainer>
         </LoadScript>
