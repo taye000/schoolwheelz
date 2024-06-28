@@ -7,7 +7,7 @@ const Map = dynamic(() => import('../components/maps'), { ssr: false });
 const Profile = () => {
     return (
         <div>
-            <h1>Driver Tracking Map</h1>
+            <h1>Driver Profile</h1>
             <div style={{ display: 'flex' }}>
                 <ProfileCard />
                 <Map />
