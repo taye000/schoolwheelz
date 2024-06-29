@@ -1,4 +1,3 @@
-// components/ProfileCard.tsx
 import React from 'react';
 import styled from 'styled-components';
 import { Avatar, Paper, Typography } from '@mui/material';
@@ -38,9 +37,15 @@ const ProfileCard = () => {
 
 // Styled Components
 const ProfileContainer = styled.div`
-    width: 40%;
+    width: 30%; /* Reduced width */
     float: left;
     margin-right: 20px;
+
+    @media (max-width: 768px) {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 20px;
+    }
 `;
 
 const StyledPaper = styled(Paper)`
@@ -57,9 +62,11 @@ const ProfileDetail = styled.p`
 
 const CarImage = styled.img`
     width: 100%;
+    max-height: 150px; /* Set a maximum height for the car image */
     height: auto;
     margin-top: 10px;
     border-radius: 8px;
+    object-fit: cover; /* Ensure the image covers the area without distortion */
 `;
 
 export default ProfileCard;
