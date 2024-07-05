@@ -16,9 +16,9 @@ const Navbar: React.FC = () => {
             <AppBar position="static">
                 <ToolbarContainer>
                     <Link href="/" passHref>
-                        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+                        <StyledTypography variant="h6" sx={{ flexGrow: 1 }}>
                             School Wheelz
-                        </Typography>
+                        </StyledTypography>
                     </Link>
                     <NavLinks>
                         <Link href="/drivers" passHref>
@@ -116,5 +116,17 @@ const DrawerContainer = styled.div`
         width: 100%;
     }
 `;
+
+const StyledTypography = styled(Typography)`
+    && {
+        color: #fff;
+        text-transform: none;
+        font-weight: bold;
+        font-size: 24px;
+        margin: 0;
+        padding: 0;
+    }
+`;
+
 
 export default Navbar;
