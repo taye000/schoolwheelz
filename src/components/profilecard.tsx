@@ -58,7 +58,6 @@ const ProfileCard: React.FC = () => {
 
 // Styled Components
 const ProfileContainer = styled.div`
-  width: 30%;
   float: left;
   margin-right: 20px;
 
