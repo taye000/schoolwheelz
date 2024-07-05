@@ -4,6 +4,12 @@ import { Avatar, Paper } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import StarHalfIcon from '@mui/icons-material/StarHalf';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
+import PersonIcon from '@mui/icons-material/Person';
+import PhoneIcon from '@mui/icons-material/Phone';
+import WcIcon from '@mui/icons-material/Wc';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import DriveEtaIcon from '@mui/icons-material/DriveEta';
+import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 
 // Sample driver profile object
 const driverProfile = {
@@ -42,12 +48,12 @@ const ProfileCard: React.FC = () => {
             <StyledPaper elevation={3}>
                 <Avatar src={driverProfile.picture} alt="Profile" sx={{ width: 100, height: 100 }} />
                 <ProfileInfo>
-                    <ProfileDetail>{driverProfile.name}</ProfileDetail>
-                    <ProfileDetail>{driverProfile.phone}</ProfileDetail>
-                    <ProfileDetail>{driverProfile.sex}</ProfileDetail>
-                    <ProfileDetail>{driverProfile.age} Years Old</ProfileDetail>
-                    <ProfileDetail>{driverProfile.carModel}</ProfileDetail>
-                    <ProfileDetail>{driverProfile.carRegistration}</ProfileDetail>
+                    <ProfileDetail><PersonIcon /> {driverProfile.name}</ProfileDetail>
+                    <ProfileDetail><PhoneIcon /> {driverProfile.phone}</ProfileDetail>
+                    <ProfileDetail><WcIcon /> {driverProfile.sex}</ProfileDetail>
+                    <ProfileDetail><CalendarTodayIcon /> {driverProfile.age} Years Old</ProfileDetail>
+                    <ProfileDetail><DriveEtaIcon /> {driverProfile.carModel}</ProfileDetail>
+                    <ProfileDetail><FormatListNumberedIcon /> {driverProfile.carRegistration}</ProfileDetail>
                     <CarImage src={driverProfile.carPicture} alt="Car" />
                     <StarRating rating={driverProfile.rating} />
                 </ProfileInfo>
@@ -78,6 +84,8 @@ const ProfileInfo = styled.div`
 
 const ProfileDetail = styled.p`
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
 `;
 
 const CarImage = styled.img`
