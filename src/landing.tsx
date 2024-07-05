@@ -1,10 +1,10 @@
 import * as React from 'react';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import getLPTheme from './getLPTheme';
 import { useThemeContext } from './context/ThemeContext';
+import { Button, Typography } from '@mui/material';
 
 interface ToggleCustomThemeProps {
     showCustomTheme: Boolean;
@@ -43,11 +43,17 @@ export default function Landing() {
     return (
         <ThemeProvider theme={showCustomTheme ? LPtheme : defaultTheme}>
             <CssBaseline />
-            <Box sx={{ bgcolor: 'background.default' }}>
-                <Divider />
-                <div>SchoolWheelz</div>
-                <Divider />
-            </Box>
+            <Typography id="modal-modal-title" variant="h6" component="h2">
+                School Wheelz
+            </Typography>
+            <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                href="/profile"
+            >
+                Profile
+            </Button>
             <ToggleCustomTheme
                 showCustomTheme={showCustomTheme}
                 toggleCustomTheme={toggleCustomTheme}
