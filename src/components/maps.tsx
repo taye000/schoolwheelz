@@ -57,6 +57,30 @@ const Map: React.FC<MapProps> = ({ mode, driverLocation, onLocationsChange }) =>
         setMapLoaded(true);
     };
 
+    const handleMarkerDrag = (e: google.maps.MapMouseEvent, locationType: 'pickup' | 'dropoff') => {
+        const latLng = e.latLng;
+        if (latLng) {
+            const lat = latLng.lat();
+            const lng = latLng.lng();
+
+            if (locationType === 'pickup') {
+                setLocations(prevState => ({
+                    ...prevState,
+                    pickupLocation: { lat, lng }
+                }));
+            } else {
+                setLocations(prevState => ({
+                    ...prevState,
+                    dropoffLocation: { lat, lng }
+                }));
+            }
+
+            if (onLocationsChange) {
+                onLocationsChange(locations);
+            }
+        }
+    };
+
     const handleMapClick = (event: google.maps.MapMouseEvent) => {
         if (mode !== 'register') return;
 
@@ -96,6 +120,8 @@ const Map: React.FC<MapProps> = ({ mode, driverLocation, onLocationsChange }) =>
                                     <Marker
                                         key={`pickup-${locations.pickupLocation.lat}-${locations.pickupLocation.lng}`}
                                         position={locations.pickupLocation}
+                                        draggable
+                                        onDragEnd={(e) => handleMarkerDrag(e, 'pickup')}
                                         icon={{
                                             url: 'https://img.icons8.com/?size=100&id=qzKNWF9sbXPV&format=png&color=000000',
                                             scaledSize: new google.maps.Size(20, 20),
@@ -106,6 +132,8 @@ const Map: React.FC<MapProps> = ({ mode, driverLocation, onLocationsChange }) =>
                                     <Marker
                                         key={`dropoff-${locations.dropoffLocation.lat}-${locations.dropoffLocation.lng}`}
                                         position={locations.dropoffLocation}
+                                        draggable
+                                        onDragEnd={(e) => handleMarkerDrag(e, 'dropoff')}
                                         icon={{
                                             url: 'https://img.icons8.com/?size=100&id=qzKNWF9sbXPV&format=png&color=FF0000',
                                             scaledSize: new google.maps.Size(20, 20),
