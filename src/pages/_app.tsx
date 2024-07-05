@@ -1,3 +1,5 @@
+import Footer from "@/components/Footer";
+import Navbar from "@/components/Navbar";
 import { ThemeProvider } from "@/context/ThemeContext";
 import type { AppProps } from "next/app";
 import React from 'react';
@@ -14,9 +16,11 @@ export default function App({ Component, pageProps }: AppProps) {
     return null;
   }
   return (
-      <ThemeProvider>
-        <Component {...pageProps} />
-        <Toaster />
-      </ThemeProvider>
+    <ThemeProvider>
+      <Navbar />
+      <Component {...pageProps} />
+      <Footer />
+      <Toaster />
+    </ThemeProvider>
   );
 }
