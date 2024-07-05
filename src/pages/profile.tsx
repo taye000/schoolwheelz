@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import styled from 'styled-components';
 import ProfileCard from '@/components/profilecard';
+import { Button } from '@mui/material';
 
 const Map = dynamic(() => import('../components/maps'), { ssr: false });
 
@@ -26,12 +27,36 @@ const ContentContainer = styled.div`
     }
 `;
 
-const Title = styled.h1`
-    text-align: center;
-    margin-bottom: 20px;
+const MapAndButtonContainer = styled.div`
+    display: flex-column;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+
+    @media (max-width: 768px) {
+        margin-top: 10px;
+    }
 `;
 
 const Profile = () => {
+    const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    setDriverLocation({ lat: latitude, lng: longitude });
+                },
+                (error) => {
+                    console.error('Error obtaining location', error);
+                }
+            );
+        } else {
+            console.error('Geolocation is not supported by this browser.');
+        }
+    }, []);
+
     return (
         <PageContainer>
             <ContentContainer>
@@ -39,9 +64,19 @@ const Profile = () => {
                     <ProfileCard />
                 </ProfileCardContainer>
                 <MapContainer>
-                    <Map />
+                    <Map mode="profile" driverLocation={driverLocation} />
                 </MapContainer>
             </ContentContainer>
+            <MapAndButtonContainer>
+                <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    href="/register"
+                >
+                    Register
+                </Button>
+            </MapAndButtonContainer>
         </PageContainer>
     );
 };
