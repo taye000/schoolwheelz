@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { TextField, Paper, FormControlLabel, Checkbox, Typography, Button } from '@mui/material';
 import styled from 'styled-components';
 import dynamic from 'next/dynamic';
+import { MapContainer } from './profile';
 
-const Map = dynamic(() => import('../components/maps'), { ssr: false });
+const Map = dynamic(() => import('../components/Map'), { ssr: false });
 
 const RegisterForm: React.FC = () => {
     const [formData, setFormData] = useState({
@@ -119,18 +120,9 @@ const FormContainer = styled.div`
 `;
 
 const StyledPaper = styled(Paper)`
-    padding: 20px;
+    padding: 10px;
     margin: 20px 0;
 `;
 
-const MapContainer = styled.div`
-    flex: 1;
-    height: 400px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e0e0e0;
-    overflow: hidden;
-    margin-bottom: 20px;
-`;
 
 export default RegisterForm;

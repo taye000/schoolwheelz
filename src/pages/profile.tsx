@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import styled from 'styled-components';
-import ProfileCard from '@/components/profilecard';
+import ProfileCard, { DriverProfile } from '@/components/Profilecard';
 import { Button } from '@mui/material';
+import { driverProfiles } from '@/sampledata';
+import { MapAndButtonContainer } from './drivers/[id]';
 
-const Map = dynamic(() => import('../components/maps'), { ssr: false });
+const driverProfile: DriverProfile = driverProfiles[0];
+
+const Map = dynamic(() => import('../components/Map'), { ssr: false });
 
 const PageContainer = styled.div`
     width: 80%;
@@ -24,17 +28,6 @@ const ContentContainer = styled.div`
     @media (max-width: 768px) {
         flex-direction: column-reverse;
         gap: 0;
-    }
-`;
-
-const MapAndButtonContainer = styled.div`
-    display: flex-column;
-    justify-content: center;
-    align-items: center;
-    margin-top: 20px;
-
-    @media (max-width: 768px) {
-        margin-top: 10px;
     }
 `;
 
@@ -61,7 +54,7 @@ const Profile = () => {
         <PageContainer>
             <ContentContainer>
                 <ProfileCardContainer>
-                    <ProfileCard />
+                    <ProfileCard {...driverProfile} />
                 </ProfileCardContainer>
                 <MapContainer>
                     <Map mode="profile" driverLocation={driverLocation} />
@@ -81,7 +74,7 @@ const Profile = () => {
     );
 };
 
-const MapContainer = styled.div`
+export const MapContainer = styled.div`
     flex: 2;
     min-width: 300px; /* Ensure minimum width for the map */
     height: 400px; /* Set a fixed height for the map */
