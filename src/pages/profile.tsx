@@ -39,7 +39,7 @@ const MapAndButtonContainer = styled.div`
 `;
 
 const Profile = () => {
-    const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+    const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number }>({ lat: -3.745, lng: -38.523 });
 
     useEffect(() => {
         if (navigator.geolocation) {
