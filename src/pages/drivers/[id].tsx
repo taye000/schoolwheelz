@@ -1,35 +1,42 @@
-// DriverDetail.tsx
-
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { driverProfiles } from '@/sampledata'; // Import your driver data
 import styled from 'styled-components';
 import { Button } from '@mui/material';
 import ProfileCard, { DriverProfile } from '@/components/Profilecard';
+import Loading from '@/Loading';
 
 const DriverDetail: React.FC = () => {
   const router = useRouter();
   const { id } = router.query; // Extract the ID from the router query
+  const [isLoading, setIsLoading] = useState(true); // State to manage loading status
 
   const [driverProfile, setDriverProfile] = useState<DriverProfile | undefined>(undefined);
 
   useEffect(() => {
+    setIsLoading(true); // Set loading state to true initially
+
     // Find the driver profile based on the ID
     const profile = driverProfiles.find(profile => profile.id === Number(id));
     if (profile) {
       setDriverProfile(profile);
     }
+
+    setIsLoading(false); // Set loading state to false after data is fetched
   }, [id]);
 
-  if (!driverProfile) {
-    return <div>Loading...</div>; // Handle case where driver profile is not found or still loading
+
+  if (isLoading) {
+    return <Loading />;
   }
 
   return (
     <PageContainer>
       <ContentContainer>
         <ProfileCardContainer>
-          <ProfileCard {...driverProfile} />
+          {driverProfile && (
+            <ProfileCard {...driverProfile} />
+          )}
         </ProfileCardContainer>
       </ContentContainer>
       <MapAndButtonContainer>
