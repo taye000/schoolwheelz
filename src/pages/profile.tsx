@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import ProfileCard, { DriverProfile } from '@/components/Profilecard';
 import { Button } from '@mui/material';
 import { driverProfiles } from '@/sampledata';
+import { MapAndButtonContainer } from './drivers/[id]';
 
 const driverProfile: DriverProfile = driverProfiles[0];
 
@@ -27,17 +28,6 @@ const ContentContainer = styled.div`
     @media (max-width: 768px) {
         flex-direction: column-reverse;
         gap: 0;
-    }
-`;
-
-const MapAndButtonContainer = styled.div`
-    display: flex-column;
-    justify-content: center;
-    align-items: center;
-    margin-top: 20px;
-
-    @media (max-width: 768px) {
-        margin-top: 10px;
     }
 `;
 

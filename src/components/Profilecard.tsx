@@ -10,6 +10,7 @@ import WcIcon from '@mui/icons-material/Wc';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import DriveEtaIcon from '@mui/icons-material/DriveEta';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
+import Link from 'next/link';
 
 export interface DriverProfile {
   id: number;
@@ -43,6 +44,7 @@ const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
 };
 
 const ProfileCard: React.FC<DriverProfile> = ({
+  id,
   picture,
   name,
   phone,
@@ -55,21 +57,25 @@ const ProfileCard: React.FC<DriverProfile> = ({
 }) => {
   return (
     <ProfileContainer>
-      <StyledPaper elevation={3}>
-        <AvatarContainer>
-          <Avatar src={picture} alt="Profile" sx={{ width: 100, height: 100 }} />
-        </AvatarContainer>
-        <ProfileInfo>
-          <ProfileDetail><PersonIcon /> {name}</ProfileDetail>
-          <ProfileDetail><PhoneIcon /> {phone}</ProfileDetail>
-          <ProfileDetail><WcIcon /> {sex}</ProfileDetail>
-          <ProfileDetail><CalendarTodayIcon /> {age} Years Old</ProfileDetail>
-          <ProfileDetail><DriveEtaIcon /> {carModel}</ProfileDetail>
-          <ProfileDetail><FormatListNumberedIcon /> {carRegistration}</ProfileDetail>
-          <CarImage src={carPicture} alt="Car" />
-          <StarRating rating={rating} />
-        </ProfileInfo>
-      </StyledPaper>
+      <Link href={`/drivers/${id}`} passHref>
+        <StyledLink>
+          <StyledPaper elevation={3}>
+            <AvatarContainer>
+              <Avatar src={picture} alt="Profile" sx={{ width: 100, height: 100 }} />
+            </AvatarContainer>
+            <ProfileInfo>
+              <ProfileDetail><PersonIcon /> {name}</ProfileDetail>
+              <ProfileDetail><PhoneIcon /> {phone}</ProfileDetail>
+              <ProfileDetail><WcIcon /> {sex}</ProfileDetail>
+              <ProfileDetail><CalendarTodayIcon /> {age} Years Old</ProfileDetail>
+              <ProfileDetail><DriveEtaIcon /> {carModel}</ProfileDetail>
+              <ProfileDetail><FormatListNumberedIcon /> {carRegistration}</ProfileDetail>
+              <CarImage src={carPicture} alt="Car" />
+              <StarRating rating={rating} />
+            </ProfileInfo>
+          </StyledPaper>
+        </StyledLink>
+      </Link>
     </ProfileContainer>
   );
 };
@@ -85,6 +91,12 @@ const ProfileContainer = styled.div`
   @media (max-width: 768px) {
     padding: 10px;
   }
+`;
+
+const StyledLink = styled.a`
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 `;
 
 const StyledPaper = styled(Paper)`

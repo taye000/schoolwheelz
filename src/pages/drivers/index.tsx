@@ -1,7 +1,8 @@
-import ProfileCard from '@/components/Profilecard';
-import { driverProfiles } from '@/sampledata';
 import React from 'react';
 import styled from 'styled-components';
+import { driverProfiles } from '@/sampledata'; // Import your driver data
+import Link from 'next/link';
+import ProfileCard from '@/components/Profilecard';
 
 const PageContainer = styled.div`
     width: 80%;
@@ -29,6 +30,12 @@ const ProfileCardContainer = styled.div`
     flex: 1;
     min-width: 300px; /* Ensure minimum width for the profile card */
     max-width: 400px; /* Add a maximum width to prevent shrinking */
+    cursor: pointer;
+    transition: transform 0.3s ease;
+
+    &:hover {
+        transform: translateY(-5px);
+    }
 
     @media (max-width: 768px) {
         width: 100%;
@@ -42,7 +49,9 @@ const Drivers: React.FC = () => {
             <ContentContainer>
                 {driverProfiles.map(profile => (
                     <ProfileCardContainer key={profile.id}>
-                        <ProfileCard {...profile} />
+                        <Link href={`/drivers/${profile.id}`} passHref>
+                            <ProfileCard {...profile} />
+                        </Link>
                     </ProfileCardContainer>
                 ))}
             </ContentContainer>
