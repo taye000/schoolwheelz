@@ -81,7 +81,7 @@ const Profile = () => {
     );
 };
 
-const MapContainer = styled.div`
+export const MapContainer = styled.div`
     flex: 2;
     min-width: 300px; /* Ensure minimum width for the map */
     height: 400px; /* Set a fixed height for the map */
