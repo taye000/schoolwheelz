@@ -18,12 +18,11 @@ const PageContainer = styled.div`
 
 const ContentContainer = styled.div`
     display: flex;
-    flex-wrap: wrap;
     gap: 20px;
 
     @media (max-width: 768px) {
-        flex-direction: column;
-        gap: 10px;
+        flex-direction: column-reverse;
+        gap: 0;
     }
 `;
 
@@ -35,9 +34,10 @@ const Title = styled.h1`
 const Profile = () => {
     return (
         <PageContainer>
-            <Title>Driver Profile</Title>
             <ContentContainer>
-                <ProfileCard />
+                <ProfileCardContainer>
+                    <ProfileCard />
+                </ProfileCardContainer>
                 <MapContainer>
                     <Map />
                 </MapContainer>
@@ -47,13 +47,25 @@ const Profile = () => {
 };
 
 const MapContainer = styled.div`
-    flex: 1;
+    flex: 2;
     min-width: 300px; /* Ensure minimum width for the map */
     height: 400px; /* Set a fixed height for the map */
-    
+
     @media (max-width: 768px) {
         width: 100%;
-        height: 300px; /* Adjust height for small devices */
+        height: calc(66vh - 10px); /* Take 2/3 of the viewport height */
+        margin-bottom: 10px;
+    }
+`;
+
+const ProfileCardContainer = styled.div`
+    flex: 1;
+    min-width: 300px; /* Ensure minimum width for the profile card */
+    max-width: 400px; /* Add a maximum width to prevent shrinking */
+
+    @media (max-width: 768px) {
+        width: 100%;
+        height: calc(34vh - 10px); /* Take 1/3 of the viewport height */
     }
 `;
 

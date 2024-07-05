@@ -1,6 +1,9 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Avatar, Paper, Typography } from '@mui/material';
+import { Avatar, Paper } from '@mui/material';
+import StarIcon from '@mui/icons-material/Star';
+import StarHalfIcon from '@mui/icons-material/StarHalf';
+import StarOutlineIcon from '@mui/icons-material/StarOutline';
 
 // Sample driver profile object
 const driverProfile = {
@@ -15,20 +18,38 @@ const driverProfile = {
     rating: 4.5,
 };
 
-const ProfileCard = () => {
+const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
+    const fullStars = Math.floor(rating);
+    const halfStar = rating % 1 !== 0;
+    const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+    return (
+        <StarsContainer>
+            {Array.from({ length: fullStars }).map((_, index) => (
+                <StarIcon key={`full-${index}`} />
+            ))}
+            {halfStar && <StarHalfIcon />}
+            {Array.from({ length: emptyStars }).map((_, index) => (
+                <StarOutlineIcon key={`empty-${index}`} />
+            ))}
+        </StarsContainer>
+    );
+};
+
+const ProfileCard: React.FC = () => {
     return (
         <ProfileContainer>
             <StyledPaper elevation={3}>
                 <Avatar src={driverProfile.picture} alt="Profile" sx={{ width: 100, height: 100 }} />
                 <ProfileInfo>
-                    <ProfileDetail><strong>Name:</strong> {driverProfile.name}</ProfileDetail>
-                    <ProfileDetail><strong>Phone:</strong> {driverProfile.phone}</ProfileDetail>
-                    <ProfileDetail><strong>Sex:</strong> {driverProfile.sex}</ProfileDetail>
-                    <ProfileDetail><strong>Age:</strong> {driverProfile.age}</ProfileDetail>
-                    <ProfileDetail><strong>Car Reg:</strong> {driverProfile.carRegistration}</ProfileDetail>
-                    <ProfileDetail><strong>Model:</strong> {driverProfile.carModel}</ProfileDetail>
+                    <ProfileDetail>{driverProfile.name}</ProfileDetail>
+                    <ProfileDetail>{driverProfile.phone}</ProfileDetail>
+                    <ProfileDetail>{driverProfile.sex}</ProfileDetail>
+                    <ProfileDetail>{driverProfile.age} Years Old</ProfileDetail>
+                    <ProfileDetail>{driverProfile.carModel}</ProfileDetail>
+                    <ProfileDetail>{driverProfile.carRegistration}</ProfileDetail>
                     <CarImage src={driverProfile.carPicture} alt="Car" />
-                    <ProfileDetail><strong>Rating:</strong> {driverProfile.rating}</ProfileDetail>
+                    <StarRating rating={driverProfile.rating} />
                 </ProfileInfo>
             </StyledPaper>
         </ProfileContainer>
@@ -37,36 +58,42 @@ const ProfileCard = () => {
 
 // Styled Components
 const ProfileContainer = styled.div`
-    width: 30%; /* Reduced width */
-    float: left;
-    margin-right: 20px;
+  width: 30%;
+  float: left;
+  margin-right: 20px;
 
-    @media (max-width: 768px) {
-        width: 100%;
-        margin-right: 0;
-        margin-bottom: 20px;
-    }
+  @media (max-width: 768px) {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 20px;
+  }
 `;
 
 const StyledPaper = styled(Paper)`
-    padding: 20px;
+  padding: 20px;
 `;
 
 const ProfileInfo = styled.div`
-    margin-top: 20px;
+  margin-top: 20px;
 `;
 
 const ProfileDetail = styled.p`
-    margin-bottom: 10px;
+  margin-bottom: 10px;
 `;
 
 const CarImage = styled.img`
-    width: 100%;
-    max-height: 150px; /* Set a maximum height for the car image */
-    height: auto;
-    margin-top: 10px;
-    border-radius: 8px;
-    object-fit: cover; /* Ensure the image covers the area without distortion */
+  width: 100%;
+  max-height: 150px;
+  height: auto;
+  margin-top: 10px;
+  border-radius: 8px;
+  object-fit: cover;
+`;
+
+const StarsContainer = styled.div`
+  display: flex;
+  align-items: center;
+  color: gold; // Change this to your desired star color
 `;
 
 export default ProfileCard;
