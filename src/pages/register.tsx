@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import dynamic from 'next/dynamic';
 import { MapContainer } from './profile';
 
-const Map = dynamic(() => import('../components/maps'), { ssr: false });
+const Map = dynamic(() => import('../components/Map'), { ssr: false });
 
 const RegisterForm: React.FC = () => {
     const [formData, setFormData] = useState({
