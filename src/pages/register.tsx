@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import dynamic from 'next/dynamic';
 import { MapContainer } from './profile';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const Map = dynamic(() => import('../components/Map'), { ssr: false });
 
@@ -65,13 +66,13 @@ const RegisterForm: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (formData.password !== formData.confirmPassword) {
-            alert('Passwords do not match!');
+            toast.error('Passwords do not match!');
             return;
         }
         try {
             const response = await axios.post('/api/parents-registration', formData);
             if (response.status === 201) {
-                alert('Parent registered successfully!');
+                toast.success('Parent registered successfully!');
                 setFormData({
                     parentName: '',
                     parentPhone: '',
@@ -88,7 +89,7 @@ const RegisterForm: React.FC = () => {
             }
         } catch (error) {
             console.error('Error registering parent:', error);
-            alert('Failed to register parent. Please try again.');
+            toast.error('Failed to register parent. Please try again.');
         }
     };
 

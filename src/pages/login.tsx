@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TextField, Button, Typography, MenuItem } from '@mui/material';
 import styled from 'styled-components';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const Login: React.FC = () => {
     const [formData, setFormData] = useState({
@@ -20,12 +21,12 @@ const Login: React.FC = () => {
         try {
             const response = await axios.post('/api/auth/login', formData);
             if (response.status === 200) {
-                alert('Login successful!');
+                toast.success('Login successful!');
                 // Redirect or handle login success
             }
         } catch (error) {
             console.error('Error logging in:', error);
-            alert('Failed to log in. Please check your credentials.');
+            toast.error('Failed to log in. Please check your credentials.');
         }
     };
 

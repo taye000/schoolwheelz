@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { TextField, Button, MenuItem } from '@mui/material';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const DriverRegistration: React.FC = () => {
     const [formData, setFormData] = useState({
@@ -29,13 +30,13 @@ const DriverRegistration: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (formData.password !== formData.confirmPassword) {
-            alert('Passwords do not match!');
+            toast.error('Passwords do not match!');
             return;
         }
         try {
             const response = await axios.post('/api/drivers-registration', formData);
             if (response.status === 201) {
-                alert('Driver registered successfully!');
+                toast.success('Driver registered successfully!');
                 setFormData({
                     fullName: '',
                     dob: '',
@@ -55,7 +56,7 @@ const DriverRegistration: React.FC = () => {
             }
         } catch (error) {
             console.error('Error registering driver:', error);
-            alert('Failed to register driver. Please try again.');
+            toast.error('Failed to register driver. Please try again.');
         }
     };
 
