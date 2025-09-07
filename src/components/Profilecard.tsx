@@ -57,21 +57,29 @@ const ProfileCard: React.FC<DriverProfile> = ({
 }) => {
   return (
     <ProfileContainer>
-      <Link href={`/drivers/${id}`} passHref>
+      <Link href={`/drivers/${id}`} passHref legacyBehavior>
         <StyledLink>
           <StyledPaper elevation={3}>
             <AvatarContainer>
-              <Avatar src={picture} alt="Profile" sx={{ width: 100, height: 100 }} />
+              <Avatar src={picture} alt="Profile" sx={{ width: 100, height: 100, border: '4px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
             </AvatarContainer>
             <ProfileInfo>
-              <ProfileDetail><PersonIcon /> {name}</ProfileDetail>
-              <ProfileDetail><PhoneIcon /> {phone}</ProfileDetail>
-              <ProfileDetail><WcIcon /> {sex}</ProfileDetail>
-              <ProfileDetail><CalendarTodayIcon /> {age} Years Old</ProfileDetail>
-              <ProfileDetail><DriveEtaIcon /> {carModel}</ProfileDetail>
-              <ProfileDetail><FormatListNumberedIcon /> {carRegistration}</ProfileDetail>
+              <NameRow>
+                <PersonIcon style={{ marginRight: 8 }} />
+                <NameText>{name}</NameText>
+                <Badge>{carModel}</Badge>
+              </NameRow>
+              <DetailsGrid>
+                <DetailItem><PhoneIcon /> <span>{phone}</span></DetailItem>
+                <DetailItem><WcIcon /> <span>{sex}</span></DetailItem>
+                <DetailItem><CalendarTodayIcon /> <span>{age} Years Old</span></DetailItem>
+                <DetailItem><FormatListNumberedIcon /> <span>{carRegistration}</span></DetailItem>
+              </DetailsGrid>
               <CarImage src={carPicture} alt="Car" />
-              <StarRating rating={rating} />
+              <StarRow>
+                <StarRating rating={rating} />
+                <RatingBadge>{rating.toFixed(1)}</RatingBadge>
+              </StarRow>
             </ProfileInfo>
           </StyledPaper>
         </StyledLink>
@@ -87,6 +95,7 @@ const ProfileContainer = styled.div`
   justify-content: center;
   padding: 20px;
   box-sizing: border-box;
+  background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
 
   @media (max-width: 768px) {
     padding: 10px;
@@ -94,20 +103,85 @@ const ProfileContainer = styled.div`
 `;
 
 const StyledLink = styled.a`
-  text-decoration: none;
+  text-decoration: none !important;
   color: inherit;
   cursor: pointer;
+  & span, & strong, & b {
+    text-decoration: none !important;
+    color: inherit;
+  }
+  &:hover, &:visited, &:active {
+    text-decoration: none !important;
+    color: inherit;
+  }
 `;
 
 const StyledPaper = styled(Paper)`
   width: 100%;
   max-width: 400px;
-  padding: 20px;
+  padding: 24px 20px;
   box-sizing: border-box;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(60, 72, 88, 0.12);
+  background: linear-gradient(135deg, #fff 60%, #f3f4f6 100%);
+  transition: box-shadow 0.2s, transform 0.2s;
+  &:hover {
+    box-shadow: 0 8px 32px rgba(60, 72, 88, 0.18);
+    transform: translateY(-2px) scale(1.02);
+  }
 
   @media (max-width: 768px) {
-    padding: 10px;
+    padding: 12px 8px;
   }
+`;
+const NameRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+`;
+
+const NameText = styled.span`
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #2d3748;
+  text-decoration: none !important;
+`;
+
+const Badge = styled.span`
+  background: #6366f1;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 12px;
+  padding: 2px 10px;
+  margin-left: 8px;
+  text-decoration: none !important;
+`;
+
+// Removed Divider
+const DetailsGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 18px 0 12px 0;
+  width: 100%;
+  justify-items: center;
+`;
+
+const DetailItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1rem;
+  color: #374151;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 6px 12px;
+  box-shadow: 0 1px 4px rgba(60,72,88,0.06);
+  min-width: 120px;
+  justify-content: center;
 `;
 
 const AvatarContainer = styled.div`
@@ -144,15 +218,33 @@ const CarImage = styled.img`
   max-height: 150px;
   height: auto;
   margin-top: 10px;
-  border-radius: 8px;
+  border-radius: 12px;
   object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 `;
 
 const StarsContainer = styled.div`
   display: flex;
   align-items: center;
-  color: gold; // Change this to your desired star color
+  color: #fbbf24;
   margin-top: 10px;
+`;
+
+const StarRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+`;
+
+const RatingBadge = styled.span`
+  background: #fbbf24;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 2px 10px;
 `;
 
 export default ProfileCard;
