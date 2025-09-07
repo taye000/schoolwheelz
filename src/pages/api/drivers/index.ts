@@ -13,8 +13,25 @@ export default async function handler(
   switch (method) {
     case "GET":
       try {
-        const drivers = await Driver.find({});
-        res.status(200).json({ success: true, data: drivers });
+        const { page = 1, limit = 10 } = req.query;
+        const pageNumber = parseInt(page as string, 10);
+        const limitNumber = parseInt(limit as string, 10);
+
+        const drivers = await Driver.find({})
+          .skip((pageNumber - 1) * limitNumber)
+          .limit(limitNumber);
+
+        const totalDrivers = await Driver.countDocuments();
+
+        res.status(200).json({
+          success: true,
+          data: drivers,
+          pagination: {
+            total: totalDrivers,
+            page: pageNumber,
+            pages: Math.ceil(totalDrivers / limitNumber),
+          },
+        });
       } catch (error) {
         res
           .status(500)
