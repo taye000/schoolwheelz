@@ -15,11 +15,11 @@ const Navbar: React.FC = () => {
         <>
             <AppBar position="static">
                 <ToolbarContainer>
-                    <Link href="/" passHref>
+                    <StyledLink href="/" passHref>
                         <StyledTypography variant="h6" sx={{ flexGrow: 1 }}>
                             School Wheelz
                         </StyledTypography>
-                    </Link>
+                    </StyledLink>
                     <NavLinks>
                         <Link href="/drivers" passHref>
                             <NavLink>Drivers</NavLink>
@@ -136,5 +136,8 @@ const StyledTypography = styled(Typography)`
     }
 `;
 
+const StyledLink = styled(Link)`
+  text-decoration: none;
+`;
 
 export default Navbar;
