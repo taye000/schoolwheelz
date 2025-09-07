@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import ProfileCard, { DriverProfile } from '@/components/Profilecard';
+import Loading from '@/Loading';
 
 const PageContainer = styled.div`
     width: 80%;
@@ -106,7 +107,7 @@ const Drivers: React.FC = () => {
     return (
         <PageContainer>
             {isLoading ? (
-                <p>Loading drivers...</p>
+                <Loading />
             ) : drivers.length === 0 ? (
                 <p>No drivers found. Looks like the garage is empty! Add some drivers to get started.</p>
             ) : (
