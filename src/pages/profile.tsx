@@ -1,110 +1,152 @@
-import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import styled from 'styled-components';
-import ProfileCard, { DriverProfile } from '@/components/Profilecard';
-import { Button } from '@mui/material';
-import { MapAndButtonContainer } from './drivers/[id]';
+import React, { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import styled from "styled-components";
+import ProfileCard from "@/components/Profilecard";
+import { Button, CircularProgress } from "@mui/material";
 
-const driverProfile: DriverProfile = {
-    _id: "1",
-    photo: "/avatar.jpg",
-    fullName: "John Doe",
-    phoneNumber: "+1234567890",
-    sex: "Male",
-    carModel: "Porsche GT3",
-    rating: 4.5,
-    dob: "1990-01-01",
-    carRegNumber: "XYZ 1234",
-    carPhoto: "/car.jpg",
-};
-
-const Map = dynamic(() => import('../components/Map'), { ssr: false });
+const Map = dynamic(() => import("../components/Map"), { ssr: false });
 
 const PageContainer = styled.div`
-    width: 80%;
-    margin: 0 auto;
-    padding: 20px;
-
-    @media (max-width: 768px) {
-        width: 100%;
-        padding: 10px;
-    }
+  width: 80%;
+  margin: 0 auto;
+  padding: 20px;
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 10px;
+  }
 `;
 
 const ContentContainer = styled.div`
-    display: flex;
-    gap: 20px;
-
-    @media (max-width: 768px) {
-        flex-direction: column-reverse;
-        gap: 0;
-    }
+  display: flex;
+  gap: 20px;
+  @media (max-width: 768px) {
+    flex-direction: column-reverse;
+    gap: 0;
+  }
 `;
 
+export const MapContainer = styled.div`
+  flex: 2;
+  min-width: 300px;
+  height: 400px;
+  @media (max-width: 768px) {
+    width: 100%;
+    height: calc(66vh - 10px);
+    margin-bottom: 10px;
+  }
+`;
+
+const ProfileCardContainer = styled.div`
+  flex: 1;
+  min-width: 300px;
+  max-width: 400px;
+  @media (max-width: 768px) {
+    width: 100%;
+    height: calc(34vh - 10px);
+  }
+`;
+
+interface User {
+    _id: string;
+    userType: "parent" | "driver";
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+    photo?: string;
+    sex?: string;
+    carModel?: string;
+    carRegNumber?: string;
+    carPhoto?: string;
+    children?: Array<{ name: string; age: number; grade: string }>;
+}
+
 const Profile = () => {
-    const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number }>({ lat: -3.745, lng: -38.523 });
+    const [user, setUser] = useState<User | null>(null);
+    const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number }>({
+        lat: -3.745,
+        lng: -38.523,
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Fetch logged-in user
+        const fetchUser = async () => {
+            try {
+                const res = await fetch("/api/auth/me");
+                const data = await res.json();
+                if (data.success) {
+                    setUser(data.data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch user:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUser();
+    }, []);
 
     useEffect(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-                    setDriverLocation({ lat: latitude, lng: longitude });
+                (pos) => {
+                    setDriverLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
                 },
-                (error) => {
-                    console.error('Error obtaining location', error);
-                }
+                (err) => console.error("Location error:", err)
             );
-        } else {
-            console.error('Geolocation is not supported by this browser.');
         }
     }, []);
+
+    if (loading) return <CircularProgress />;
+
+    if (!user) return <p>Please login to view your profile.</p>;
 
     return (
         <PageContainer>
             <ContentContainer>
                 <ProfileCardContainer>
-                    <ProfileCard {...driverProfile} />
+                    {/* Render different layouts */}
+                    {user.userType === "driver" ? (
+                        <ProfileCard
+                            _id={user._id}
+                            photo={user.photo || "/avatar.jpg"}
+                            fullName={user.fullName}
+                            phoneNumber={user.phoneNumber}
+                            sex={user.sex || ""}
+                            carModel={user.carModel || ""}
+                            carRegNumber={user.carRegNumber || ""}
+                            carPhoto={user.carPhoto || ""}
+                            rating={4.5}
+                            dob={"1990-01-01"}
+                        />
+                    ) : (
+                        <div>
+                            <h2>{user.fullName} (Parent)</h2>
+                            <p>Email: {user.email}</p>
+                            <p>Phone: {user.phoneNumber}</p>
+                            <p>Address: {(user as any).address}</p>
+                            <h3>Children:</h3>
+                            <ul>
+                                {user.children?.map((child, idx) => (
+                                    <li key={idx}>
+                                        {child.name}, {child.age} years, Grade {child.grade}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </ProfileCardContainer>
-                <MapContainer>
-                    <Map mode="profile" driverLocation={driverLocation} />
-                </MapContainer>
+                {user.userType === "driver" && (
+                    <MapContainer>
+                        <Map mode="profile" driverLocation={driverLocation} />
+                    </MapContainer>
+                )}
             </ContentContainer>
-            <MapAndButtonContainer>
-                <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    href="/register"
-                >
-                    Register
-                </Button>
-            </MapAndButtonContainer>
+            <Button type="button" variant="contained" color="secondary" href="/api/auth/logout">
+                Logout
+            </Button>
         </PageContainer>
     );
 };
-
-export const MapContainer = styled.div`
-    flex: 2;
-    min-width: 300px; /* Ensure minimum width for the map */
-    height: 400px; /* Set a fixed height for the map */
-
-    @media (max-width: 768px) {
-        width: 100%;
-        height: calc(66vh - 10px); /* Take 2/3 of the viewport height */
-        margin-bottom: 10px;
-    }
-`;
-
-const ProfileCardContainer = styled.div`
-    flex: 1;
-    min-width: 300px; /* Ensure minimum width for the profile card */
-    max-width: 400px; /* Add a maximum width to prevent shrinking */
-
-    @media (max-width: 768px) {
-        width: 100%;
-        height: calc(34vh - 10px); /* Take 1/3 of the viewport height */
-    }
-`;
 
 export default Profile;

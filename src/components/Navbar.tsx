@@ -1,15 +1,48 @@
-import React, { useState } from 'react';
-import { AppBar, Toolbar, Typography, Button, IconButton, Drawer, List, ListItem, ListItemText } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import styled from 'styled-components';
-import Link from 'next/link';
+import React, { useState, useEffect } from "react";
+import {
+    AppBar,
+    Toolbar,
+    Typography,
+    Button,
+    IconButton,
+    Drawer,
+    List,
+    ListItem,
+    ListItemText,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import styled from "styled-components";
+import Link from "next/link";
+
+interface User {
+    _id: string;
+    fullName: string;
+    email: string;
+    userType: "parent" | "driver";
+}
 
 const Navbar: React.FC = () => {
     const [drawerOpen, setDrawerOpen] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
     };
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await fetch("/api/auth/me");
+                const data = await res.json();
+                if (data.success) {
+                    setUser(data.data);
+                }
+            } catch (err) {
+                setUser(null); // not logged in
+            }
+        };
+        fetchUser();
+    }, []);
 
     return (
         <>
@@ -24,21 +57,30 @@ const Navbar: React.FC = () => {
                         <Link href="/drivers" passHref>
                             <NavLink>Drivers</NavLink>
                         </Link>
-                        <Link href="/profile" passHref>
-                            <NavLink>Profile</NavLink>
-                        </Link>
+                        {user && (
+                            <Link href="/profile" passHref>
+                                <NavLink>Profile</NavLink>
+                            </Link>
+                        )}
                         <Link href="/register" passHref>
                             <NavLink>Parents/Kids Registration</NavLink>
                         </Link>
                         <Link href="/driver-registration" passHref>
                             <NavLink>Driver Registration</NavLink>
                         </Link>
-                        <Link href="/login" passHref>
-                            <NavLink>Sign In</NavLink>
-                        </Link>
+                        {!user && (
+                            <Link href="/login" passHref>
+                                <NavLink>Sign In</NavLink>
+                            </Link>
+                        )}
                     </NavLinks>
                     <MobileMenuIcon>
-                        <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleDrawer(true)}>
+                        <IconButton
+                            edge="start"
+                            color="inherit"
+                            aria-label="menu"
+                            onClick={toggleDrawer(true)}
+                        >
                             <MenuIcon />
                         </IconButton>
                     </MobileMenuIcon>
@@ -52,11 +94,13 @@ const Navbar: React.FC = () => {
                                 <ListItemText primary="Drivers" />
                             </ListItem>
                         </Link>
-                        <Link href="/profile" passHref>
-                            <ListItem onClick={toggleDrawer(false)}>
-                                <ListItemText primary="Profile" />
-                            </ListItem>
-                        </Link>
+                        {user && (
+                            <Link href="/profile" passHref>
+                                <ListItem onClick={toggleDrawer(false)}>
+                                    <ListItemText primary="Profile" />
+                                </ListItem>
+                            </Link>
+                        )}
                         <Link href="/register" passHref>
                             <ListItem onClick={toggleDrawer(false)}>
                                 <ListItemText primary="Register" />
@@ -67,11 +111,13 @@ const Navbar: React.FC = () => {
                                 <ListItemText primary="Driver Registration" />
                             </ListItem>
                         </Link>
-                        <Link href="/login" passHref>
-                            <ListItem onClick={toggleDrawer(false)}>
-                                <ListItemText primary="Sign In" />
-                            </ListItem>
-                        </Link>
+                        {!user && (
+                            <Link href="/login" passHref>
+                                <ListItem onClick={toggleDrawer(false)}>
+                                    <ListItemText primary="Sign In" />
+                                </ListItem>
+                            </Link>
+                        )}
                     </List>
                 </DrawerContainer>
             </Drawer>
@@ -80,68 +126,68 @@ const Navbar: React.FC = () => {
 };
 
 const ToolbarContainer = styled(Toolbar)`
-    display: flex;
-    justify-content: space-between;
+  display: flex;
+  justify-content: space-between;
 `;
 
 const NavLinks = styled.div`
-    display: flex;
-    gap: 20px;
+  display: flex;
+  gap: 20px;
 
-    @media (max-width: 768px) {
-        display: none;
-    }
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const NavLink = styled(Button)`
-    && {
-        color: #fff;
-        text-transform: none;
-        &:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
+  && {
+    color: #fff;
+    text-transform: none;
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
     }
+  }
 `;
 
 const MobileMenuIcon = styled.div`
-    display: none;
+  display: none;
 
-    @media (max-width: 768px) {
-        display: flex;
-    }
+  @media (max-width: 768px) {
+    display: flex;
+  }
 `;
 
 const DrawerContainer = styled.div`
-    width: 250px;
-    padding: 20px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    box-sizing: border-box;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  width: 250px;
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 
-    &::-webkit-scrollbar {
-        display: none;
-    }
+  &::-webkit-scrollbar {
+    display: none;
+  }
 
-    @media (max-width: 768px) {
-        width: 100%;
-    }
+  @media (max-width: 768px) {
+    width: 100%;
+  }
 `;
 
 const StyledTypography = styled(Typography)`
-    && {
-        color: #fff;
-        text-transform: none;
-        font-weight: bold;
-        font-size: 24px;
-        margin: 0;
-        padding: 0;
-    }
+  && {
+    color: #fff;
+    text-transform: none;
+    font-weight: bold;
+    font-size: 24px;
+    margin: 0;
+    padding: 0;
+  }
 `;
 
 const StyledLink = styled(Link)`
