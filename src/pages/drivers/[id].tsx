@@ -19,29 +19,25 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import WcIcon from '@mui/icons-material/Wc';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
+import DriveEtaIcon from '@mui/icons-material/DriveEta';
 import { Button } from '@mui/material';
 import { DriverProfile } from '@/components/Profilecard';
 import Loading from '@/Loading';
 
 const DriverDetail: React.FC = () => {
   const router = useRouter();
-  const { id } = router.query; // Extract the ID from the router query
-  const [isLoading, setIsLoading] = useState(true); // State to manage loading status
-
+  const { id } = router.query;
+  const [isLoading, setIsLoading] = useState(true);
   const [driverProfile, setDriverProfile] = useState<DriverProfile | undefined>(undefined);
 
   useEffect(() => {
-    setIsLoading(true); // Set loading state to true initially
-
-    // Find the driver profile based on the ID
+    setIsLoading(true);
     const profile = driverProfiles.find(profile => profile.id === Number(id));
     if (profile) {
       setDriverProfile(profile);
     }
-
-    setIsLoading(false); // Set loading state to false after data is fetched
+    setIsLoading(false);
   }, [id]);
-
 
   if (isLoading) {
     return <Loading />;
@@ -50,45 +46,87 @@ const DriverDetail: React.FC = () => {
   if (!driverProfile) {
     return (
       <PageContainer>
-        <h2>Driver not found</h2>
+        <EmptyState>
+          <h2>Driver not found</h2>
+          <Button variant="contained" color="primary" href="/drivers">
+            Back to Drivers
+          </Button>
+        </EmptyState>
       </PageContainer>
     );
   }
 
   return (
     <PageContainer>
-      <DetailHeader>
-        <AvatarImg src={driverProfile.picture} alt={driverProfile.name} />
-        <div>
-          <Name>{driverProfile.name}</Name>
-          <CarBadge>{driverProfile.carModel}</CarBadge>
-        </div>
-      </DetailHeader>
-      <DetailGrid>
-        <DetailItem><PhoneIcon /> <span>{driverProfile.phone}</span></DetailItem>
-        <DetailItem><WcIcon /> <span>{driverProfile.sex}</span></DetailItem>
-        <DetailItem><CalendarTodayIcon /> <span>{driverProfile.age} Years Old</span></DetailItem>
-        <DetailItem><FormatListNumberedIcon /> <span>{driverProfile.carRegistration}</span></DetailItem>
-      </DetailGrid>
-      <CarImage src={driverProfile.carPicture} alt="Car" />
-      <RatingRow>
-        <StarsContainer>
-          {Array.from({ length: Math.floor(driverProfile.rating) }).map((_, i) => <StarIcon key={i} />)}
-          {driverProfile.rating % 1 !== 0 && <StarHalfIcon />}
-          {Array.from({ length: 5 - Math.ceil(driverProfile.rating) }).map((_, i) => <StarOutlineIcon key={i} />)}
-        </StarsContainer>
-        <RatingBadge>{driverProfile.rating.toFixed(1)}</RatingBadge>
-      </RatingRow>
-      <MapAndButtonContainer>
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          href="/register"
-        >
-          Register
-        </Button>
-      </MapAndButtonContainer>
+      <BackButton onClick={() => router.push('/drivers')}>
+        ← Back to Drivers
+      </BackButton>
+
+      <MainContent>
+        <LeftColumn>
+          <DetailHeader>
+            <AvatarSection>
+              <AvatarImg src={driverProfile.picture} alt={driverProfile.name} />
+              <AvatarInfo>
+                <Name>{driverProfile.name}</Name>
+                <SubInfo>
+                  <CarBadge>{driverProfile.carModel}</CarBadge>
+                  <RatingSection>
+                    <StarsContainer>
+                      {Array.from({ length: Math.floor(driverProfile.rating) }).map((_, i) => (
+                        <StarIcon key={i} />
+                      ))}
+                      {driverProfile.rating % 1 !== 0 && <StarHalfIcon />}
+                      {Array.from({ length: 5 - Math.ceil(driverProfile.rating) }).map((_, i) => (
+                        <StarOutlineIcon key={i} />
+                      ))}
+                    </StarsContainer>
+                    <RatingBadge>{driverProfile.rating.toFixed(1)}</RatingBadge>
+                  </RatingSection>
+                </SubInfo>
+              </AvatarInfo>
+            </AvatarSection>
+          </DetailHeader>
+
+          <Section>
+            <SectionTitle>Contact Information</SectionTitle>
+            <DetailGrid>
+              <DetailItem><PhoneIcon /> <span>{driverProfile.phone}</span></DetailItem>
+              <DetailItem><WcIcon /> <span>{driverProfile.sex}</span></DetailItem>
+              <DetailItem><CalendarTodayIcon /> <span>{driverProfile.age} Years Old</span></DetailItem>
+            </DetailGrid>
+          </Section>
+
+          <Section>
+            <SectionTitle>Vehicle Information</SectionTitle>
+            <DetailGrid>
+              <DetailItem><DriveEtaIcon /> <span>{driverProfile.carModel}</span></DetailItem>
+              <DetailItem><FormatListNumberedIcon /> <span>{driverProfile.carRegistration}</span></DetailItem>
+            </DetailGrid>
+            <CarImageWrapper>
+              <CarImage src={driverProfile.carPicture} alt="Car" />
+            </CarImageWrapper>
+          </Section>
+        </LeftColumn>
+
+        <RightColumn>
+          <Section>
+            <SectionTitle>Schedule a Pick-up</SectionTitle>
+            <RegisterCard>
+              <p>Ready to schedule a pick-up with {driverProfile.name}?</p>
+              <Button
+                variant="contained"
+                color="primary"
+                href="/register"
+                fullWidth
+                size="large"
+              >
+                Register Now
+              </Button>
+            </RegisterCard>
+          </Section>
+        </RightColumn>
+      </MainContent>
     </PageContainer>
   );
 };
@@ -208,6 +246,100 @@ const ProfileCardContainer = styled.div`
     width: 100%;
     height: calc(34vh - 10px); /* Take 1/3 of the viewport height */
   }
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  border-radius: 12px;
+  background: #f9fafb;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+`;
+
+const BackButton = styled.button`
+  background: transparent;
+  border: none;
+  color: #6366f1;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const MainContent = styled.div`
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  width: 100%;
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
+  }
+`;
+
+const LeftColumn = styled.div`
+  flex: 2;
+  min-width: 300px;
+`;
+
+const RightColumn = styled.div`
+  flex: 1;
+  min-width: 250px;
+`;
+
+const AvatarSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+`;
+
+const AvatarInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const SubInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const RatingSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const Section = styled.div`
+  margin-bottom: 32px;
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 16px;
+`;
+
+const RegisterCard = styled.div`
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  text-align: center;
+`;
+
+const CarImageWrapper = styled.div`
+  margin-top: 16px;
+  border-radius: 8px;
+  overflow: hidden;
 `;
 
 export default DriverDetail;
