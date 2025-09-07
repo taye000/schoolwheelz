@@ -25,21 +25,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     useEffect(() => {
-        // Check if window object is available (not server-side rendering)
-        const handleSystemThemeChange = () => {
-            setMode((prevMode) =>
-                window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-            );
+        const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+            setMode(e.matches ? "dark" : "light");
         };
 
-        window
-            .matchMedia("(prefers-color-scheme: dark)")
-            .addEventListener("change", handleSystemThemeChange);
+        const darkModeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        darkModeMediaQuery.addEventListener("change", handleSystemThemeChange);
 
         return () => {
-            window
-                .matchMedia("(prefers-color-scheme: dark)")
-                .removeEventListener("change", handleSystemThemeChange);
+            darkModeMediaQuery.removeEventListener("change", handleSystemThemeChange);
         };
     }, []);
 
