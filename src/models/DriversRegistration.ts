@@ -17,6 +17,7 @@ export interface IDriver extends Document {
   carPhoto: string;
   userType: UserType;
   password: string;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 const DriverSchema: Schema = new Schema({

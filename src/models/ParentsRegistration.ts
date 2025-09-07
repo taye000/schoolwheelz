@@ -9,6 +9,7 @@ export interface IParent extends Document {
   address: string;
   userType: UserType;
   password: string;
+  comparePassword(candidatePassword: string): Promise<boolean>;
   children: Array<{
     name: string;
     age: number;

@@ -29,6 +29,7 @@ export default async function handler(
           user = await Parent.findOne({ email });
         } else if (userType === "driver") {
           user = await Driver.findOne({ email });
+          console.log("Driver found:", user);
         }
 
         if (!user) {
@@ -38,6 +39,7 @@ export default async function handler(
         }
 
         const isMatch = await user.comparePassword(password);
+        console.log("Password match:", isMatch);
         if (!isMatch) {
           return res
             .status(401)
