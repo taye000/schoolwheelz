@@ -10,8 +10,10 @@ const RegisterForm: React.FC = () => {
     const [formData, setFormData] = useState({
         parentName: '',
         parentPhone: '',
-        childName: '',
-        schoolContact: '',
+        parentLocation: '',
+        children: [
+            { childName: '', school: '', location: '' }
+        ],
         pickupLocation: { lat: 0, lng: 0 },
         dropoffLocation: { lat: 0, lng: 0 },
         recurring: false,
@@ -19,18 +21,45 @@ const RegisterForm: React.FC = () => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target;
-        setFormData({
-            ...formData,
-            [name]: type === 'checkbox' ? checked : value,
-        });
+        if (name === 'parentName' || name === 'parentPhone' || name === 'parentLocation' || name === 'recurring') {
+            setFormData({
+                ...formData,
+                [name]: type === 'checkbox' ? checked : value,
+            });
+        }
     };
-
     const handleMapChange = (locations: { pickupLocation: { lat: number; lng: number }, dropoffLocation: { lat: number; lng: number } }) => {
         setFormData({
             ...formData,
             ...locations,
         });
     };
+
+    const handleChildChange = (index: number, field: string, value: string) => {
+        const updatedChildren = formData.children.map((child, i) =>
+            i === index ? { ...child, [field]: value } : child
+        );
+        setFormData({
+            ...formData,
+            children: updatedChildren,
+        });
+    };
+
+    const handleAddChild = () => {
+        setFormData({
+            ...formData,
+            children: [...formData.children, { childName: '', school: '', location: '' }],
+        });
+    };
+
+    const handleRemoveChild = (index: number) => {
+        setFormData({
+            ...formData,
+            children: formData.children.filter((_, i) => i !== index),
+        });
+    };
+
+    // Removed map handler
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -63,23 +92,54 @@ const RegisterForm: React.FC = () => {
                         required
                     />
                     <TextField
-                        label="Child's Name"
+                        label="Parent's Location"
                         fullWidth
                         margin="normal"
-                        name="childName"
-                        value={formData.childName}
+                        name="parentLocation"
+                        value={formData.parentLocation}
                         onChange={handleChange}
                         required
                     />
-                    <TextField
-                        label="School Contact"
-                        fullWidth
-                        margin="normal"
-                        name="schoolContact"
-                        value={formData.schoolContact}
-                        onChange={handleChange}
-                        required
-                    />
+
+                    <Typography variant="h6" gutterBottom>
+                        Children
+                    </Typography>
+                    {formData.children.map((child, idx) => (
+                        <div key={idx} style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '8px' }}>
+                            <TextField
+                                label={`Child's Name`}
+                                fullWidth
+                                margin="normal"
+                                value={child.childName}
+                                onChange={e => handleChildChange(idx, 'childName', e.target.value)}
+                                required
+                            />
+                            <TextField
+                                label="School"
+                                fullWidth
+                                margin="normal"
+                                value={child.school}
+                                onChange={e => handleChildChange(idx, 'school', e.target.value)}
+                                required
+                            />
+                            <TextField
+                                label="Location"
+                                fullWidth
+                                margin="normal"
+                                value={child.location}
+                                onChange={e => handleChildChange(idx, 'location', e.target.value)}
+                                required
+                            />
+                            {formData.children.length > 1 && (
+                                <Button variant="outlined" color="secondary" onClick={() => handleRemoveChild(idx)} style={{ height: '56px' }}>
+                                    Remove
+                                </Button>
+                            )}
+                        </div>
+                    ))}
+                    <Button variant="contained" color="primary" onClick={handleAddChild} style={{ marginBottom: '16px' }}>
+                        Add Child
+                    </Button>
                     <Typography variant="h6" gutterBottom>
                         Select Pick-Up and Drop-Off Locations
                     </Typography>
