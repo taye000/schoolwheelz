@@ -3,6 +3,7 @@ import { TextField, Paper, FormControlLabel, Checkbox, Typography, Button } from
 import styled from 'styled-components';
 import dynamic from 'next/dynamic';
 import { MapContainer } from './profile';
+import axios from 'axios';
 
 const Map = dynamic(() => import('../components/Map'), { ssr: false });
 
@@ -59,11 +60,28 @@ const RegisterForm: React.FC = () => {
         });
     };
 
-    // Removed map handler
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log(formData); // You can handle form submission logic here
+        try {
+            const response = await axios.post('/api/parents-registration', formData);
+            if (response.status === 201) {
+                alert('Parent registered successfully!');
+                setFormData({
+                    parentName: '',
+                    parentPhone: '',
+                    parentLocation: '',
+                    children: [
+                        { childName: '', school: '', location: '' }
+                    ],
+                    pickupLocation: { lat: 0, lng: 0 },
+                    dropoffLocation: { lat: 0, lng: 0 },
+                    recurring: false,
+                });
+            }
+        } catch (error) {
+            console.error('Error registering parent:', error);
+            alert('Failed to register parent. Please try again.');
+        }
     };
 
     return (

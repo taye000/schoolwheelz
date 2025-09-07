@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { TextField, Button, MenuItem } from '@mui/material';
+import axios from 'axios';
 
 const DriverRegistration: React.FC = () => {
     const [formData, setFormData] = useState({
@@ -23,9 +24,31 @@ const DriverRegistration: React.FC = () => {
         setFormData({ ...formData, [name]: value });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Form Data:', formData);
+        try {
+            const response = await axios.post('/api/drivers-registration', formData);
+            if (response.status === 201) {
+                alert('Driver registered successfully!');
+                setFormData({
+                    fullName: '',
+                    dob: '',
+                    licenseNumber: '',
+                    idNumber: '',
+                    email: '',
+                    phoneNumber: '',
+                    photo: '',
+                    sex: '',
+                    carMake: '',
+                    carModel: '',
+                    carRegNumber: '',
+                    carPhoto: '',
+                });
+            }
+        } catch (error) {
+            console.error('Error registering driver:', error);
+            alert('Failed to register driver. Please try again.');
+        }
     };
 
     return (
