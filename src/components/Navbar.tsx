@@ -28,7 +28,10 @@ const Navbar: React.FC = () => {
                             <NavLink>Profile</NavLink>
                         </Link>
                         <Link href="/register" passHref>
-                            <NavLink>Register</NavLink>
+                            <NavLink>Parents/Kids Registration</NavLink>
+                        </Link>
+                        <Link href="/driver-registration" passHref>
+                            <NavLink>Driver Registration</NavLink>
                         </Link>
                     </NavLinks>
                     <MobileMenuIcon>
@@ -54,6 +57,11 @@ const Navbar: React.FC = () => {
                         <Link href="/register" passHref>
                             <ListItem onClick={toggleDrawer(false)}>
                                 <ListItemText primary="Register" />
+                            </ListItem>
+                        </Link>
+                        <Link href="/driver-registration" passHref>
+                            <ListItem onClick={toggleDrawer(false)}>
+                                <ListItemText primary="Driver Registration" />
                             </ListItem>
                         </Link>
                     </List>
