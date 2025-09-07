@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/utils/dbConnect";
 import Parent from "@/models/ParentsRegistration";
+import bcrypt from "bcrypt";
 
 export default async function handler(
   req: NextApiRequest,
@@ -13,7 +14,13 @@ export default async function handler(
   switch (method) {
     case "POST":
       try {
-        const parent = await Parent.create(req.body);
+        const { password, ...otherData } = req.body;
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        const parent = await Parent.create({
+          ...otherData,
+          password: hashedPassword,
+        });
         res.status(201).json({ success: true, data: parent });
       } catch (error) {
         res.status(400).json({ success: false, error });

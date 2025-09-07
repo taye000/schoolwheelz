@@ -18,6 +18,8 @@ const RegisterForm: React.FC = () => {
         pickupLocation: { lat: 0, lng: 0 },
         dropoffLocation: { lat: 0, lng: 0 },
         recurring: false,
+        password: '',
+        confirmPassword: '',
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,6 +64,10 @@ const RegisterForm: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (formData.password !== formData.confirmPassword) {
+            alert('Passwords do not match!');
+            return;
+        }
         try {
             const response = await axios.post('/api/parents-registration', formData);
             if (response.status === 201) {
@@ -76,6 +82,8 @@ const RegisterForm: React.FC = () => {
                     pickupLocation: { lat: 0, lng: 0 },
                     dropoffLocation: { lat: 0, lng: 0 },
                     recurring: false,
+                    password: '',
+                    confirmPassword: '',
                 });
             }
         } catch (error) {
@@ -118,7 +126,26 @@ const RegisterForm: React.FC = () => {
                         onChange={handleChange}
                         required
                     />
-
+                    <TextField
+                        label="Password"
+                        fullWidth
+                        margin="normal"
+                        name="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                    />
+                    <TextField
+                        label="Confirm Password"
+                        fullWidth
+                        margin="normal"
+                        name="confirmPassword"
+                        type="password"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        required
+                    />
                     <Typography variant="h6" gutterBottom>
                         Children
                     </Typography>

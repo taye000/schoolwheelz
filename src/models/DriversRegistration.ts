@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
+import bcrypt from "bcrypt";
 
 export interface IDriver extends Document {
   fullName: string;
@@ -13,6 +14,7 @@ export interface IDriver extends Document {
   carModel: string;
   carRegNumber: string;
   carPhoto: string;
+  password: string;
 }
 
 const DriverSchema: Schema = new Schema({
@@ -28,6 +30,14 @@ const DriverSchema: Schema = new Schema({
   carModel: { type: String, required: true },
   carRegNumber: { type: String, required: true, unique: true },
   carPhoto: { type: String, required: true },
+  password: { type: String, required: true },
+});
+
+DriverSchema.pre<IDriver>("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
 export default mongoose.models.Driver ||
