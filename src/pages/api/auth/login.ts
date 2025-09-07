@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/utils/dbConnect";
 import Parent from "@/models/ParentsRegistration";
 import Driver from "@/models/DriversRegistration";
+import jwt from "jsonwebtoken";
 
 export default async function handler(
   req: NextApiRequest,
@@ -41,6 +42,20 @@ export default async function handler(
             .status(401)
             .json({ success: false, message: "Invalid credentials" });
         }
+
+        const token = jwt.sign(
+          {
+            id: user._id,
+            userType: user.userType,
+            email: user.email,
+            fullName: user.fullName,
+            phoneNumber: user.phoneNumber,
+          },
+          process.env.JWT_SECRET as string,
+          { expiresIn: "1h" }
+        );
+
+        res.setHeader("Authorization", `Bearer ${token}`);
 
         const { password: _, ...safeUser } = user.toObject();
 
