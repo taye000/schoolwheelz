@@ -10,7 +10,7 @@ const PageContainer = styled.div`
 `;
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { driverProfiles } from '@/sampledata'; // Import your driver data
+import axios from 'axios';
 import styled from 'styled-components';
 import StarIcon from '@mui/icons-material/Star';
 import StarHalfIcon from '@mui/icons-material/StarHalf';
@@ -28,15 +28,28 @@ const DriverDetail: React.FC = () => {
   const router = useRouter();
   const { id } = router.query;
   const [isLoading, setIsLoading] = useState(true);
-  const [driverProfile, setDriverProfile] = useState<DriverProfile | undefined>(undefined);
+  const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
 
   useEffect(() => {
-    setIsLoading(true);
-    const profile = driverProfiles.find(profile => profile.id === Number(id));
-    if (profile) {
-      setDriverProfile(profile);
-    }
-    setIsLoading(false);
+    const fetchDriver = async () => {
+      if (!id) return;
+      setIsLoading(true);
+      try {
+        const response = await axios.get(`/api/drivers/${id}`);
+        if (response.data.success) {
+          setDriverProfile(response.data.data);
+        } else {
+          setDriverProfile(null);
+        }
+      } catch (error) {
+        console.error('Error fetching driver:', error);
+        setDriverProfile(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDriver();
   }, [id]);
 
   if (isLoading) {
@@ -66,22 +79,22 @@ const DriverDetail: React.FC = () => {
         <LeftColumn>
           <DetailHeader>
             <AvatarSection>
-              <AvatarImg src={driverProfile.picture} alt={driverProfile.name} />
+              <AvatarImg src={driverProfile.photo} alt={driverProfile.fullName} />
               <AvatarInfo>
-                <Name>{driverProfile.name}</Name>
+                <Name>{driverProfile.fullName}</Name>
                 <SubInfo>
                   <CarBadge>{driverProfile.carModel}</CarBadge>
                   <RatingSection>
                     <StarsContainer>
-                      {Array.from({ length: Math.floor(driverProfile.rating) }).map((_, i) => (
+                      {Array.from({ length: Math.floor(4.5) }).map((_, i) => (
                         <StarIcon key={i} />
                       ))}
-                      {driverProfile.rating % 1 !== 0 && <StarHalfIcon />}
-                      {Array.from({ length: 5 - Math.ceil(driverProfile.rating) }).map((_, i) => (
+                      {4.5 % 1 !== 0 && <StarHalfIcon />}
+                      {Array.from({ length: 5 - Math.ceil(4.5) }).map((_, i) => (
                         <StarOutlineIcon key={i} />
                       ))}
                     </StarsContainer>
-                    <RatingBadge>{driverProfile.rating.toFixed(1)}</RatingBadge>
+                    <RatingBadge>4.5</RatingBadge>
                   </RatingSection>
                 </SubInfo>
               </AvatarInfo>
@@ -91,9 +104,9 @@ const DriverDetail: React.FC = () => {
           <Section>
             <SectionTitle>Contact Information</SectionTitle>
             <DetailGrid>
-              <DetailItem><PhoneIcon /> <span>{driverProfile.phone}</span></DetailItem>
+              <DetailItem><PhoneIcon /> <span>{driverProfile.phoneNumber}</span></DetailItem>
               <DetailItem><WcIcon /> <span>{driverProfile.sex}</span></DetailItem>
-              <DetailItem><CalendarTodayIcon /> <span>{driverProfile.age} Years Old</span></DetailItem>
+              <DetailItem><CalendarTodayIcon /> <span>{new Date().getFullYear() - new Date(driverProfile.dob).getFullYear()} Years Old</span></DetailItem>
             </DetailGrid>
           </Section>
 
@@ -101,10 +114,10 @@ const DriverDetail: React.FC = () => {
             <SectionTitle>Vehicle Information</SectionTitle>
             <DetailGrid>
               <DetailItem><DriveEtaIcon /> <span>{driverProfile.carModel}</span></DetailItem>
-              <DetailItem><FormatListNumberedIcon /> <span>{driverProfile.carRegistration}</span></DetailItem>
+              <DetailItem><FormatListNumberedIcon /> <span>{driverProfile.carRegNumber}</span></DetailItem>
             </DetailGrid>
             <CarImageWrapper>
-              <CarImage src={driverProfile.carPicture} alt="Car" />
+              <CarImage src={driverProfile.carPhoto} alt="Car" />
             </CarImageWrapper>
           </Section>
         </LeftColumn>
@@ -113,7 +126,7 @@ const DriverDetail: React.FC = () => {
           <Section>
             <SectionTitle>Schedule a Pick-up</SectionTitle>
             <RegisterCard>
-              <p>Ready to schedule a pick-up with {driverProfile.name}?</p>
+              <p>Ready to schedule a pick-up with {driverProfile.fullName}?</p>
               <Button
                 variant="contained"
                 color="primary"

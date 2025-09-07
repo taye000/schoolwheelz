@@ -3,10 +3,20 @@ import dynamic from 'next/dynamic';
 import styled from 'styled-components';
 import ProfileCard, { DriverProfile } from '@/components/Profilecard';
 import { Button } from '@mui/material';
-import { driverProfiles } from '@/sampledata';
 import { MapAndButtonContainer } from './drivers/[id]';
 
-const driverProfile: DriverProfile = driverProfiles[0];
+const driverProfile: DriverProfile = {
+    _id: "1",
+    photo: "/avatar.jpg",
+    fullName: "John Doe",
+    phoneNumber: "+1234567890",
+    sex: "Male",
+    carModel: "Porsche GT3",
+    rating: 4.5,
+    dob: "1990-01-01",
+    carRegNumber: "XYZ 1234",
+    carPhoto: "/car.jpg",
+};
 
 const Map = dynamic(() => import('../components/Map'), { ssr: false });
 

@@ -8,21 +8,20 @@ import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import WcIcon from '@mui/icons-material/Wc';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import DriveEtaIcon from '@mui/icons-material/DriveEta';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import Link from 'next/link';
 
 export interface DriverProfile {
-  id: number;
-  picture: string;
-  name: string;
-  phone: string;
+  _id: string;
+  photo: string;
+  fullName: string;
+  phoneNumber: string;
   sex: string;
-  age: number;
-  carRegistration: string;
+  dob: string;
+  carRegNumber: string;
   carModel: string;
-  carPicture: string;
-  rating: number;
+  carPhoto: string;
+  rating?: number;
 }
 
 const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
@@ -44,41 +43,41 @@ const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
 };
 
 const ProfileCard: React.FC<DriverProfile> = ({
-  id,
-  picture,
-  name,
-  phone,
+  _id,
+  photo,
+  fullName,
+  phoneNumber,
   sex,
-  age,
-  carRegistration,
+  dob,
+  carRegNumber,
   carModel,
-  carPicture,
+  carPhoto,
   rating,
 }) => {
   return (
     <ProfileContainer>
-      <Link href={`/drivers/${id}`} passHref legacyBehavior>
+      <Link href={`/drivers/${_id}`} passHref legacyBehavior>
         <StyledLink>
           <StyledPaper elevation={3}>
             <AvatarContainer>
-              <Avatar src={picture} alt="Profile" sx={{ width: 100, height: 100, border: '4px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
+              <Avatar src={photo} alt="Profile" sx={{ width: 100, height: 100, border: '4px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
             </AvatarContainer>
             <ProfileInfo>
               <NameRow>
                 <PersonIcon style={{ marginRight: 8 }} />
-                <NameText>{name}</NameText>
+                <NameText>{fullName}</NameText>
                 <Badge>{carModel}</Badge>
               </NameRow>
               <DetailsGrid>
-                <DetailItem><PhoneIcon /> <span>{phone}</span></DetailItem>
+                <DetailItem><PhoneIcon /> <span>{phoneNumber}</span></DetailItem>
                 <DetailItem><WcIcon /> <span>{sex}</span></DetailItem>
-                <DetailItem><CalendarTodayIcon /> <span>{age} Years Old</span></DetailItem>
-                <DetailItem><FormatListNumberedIcon /> <span>{carRegistration}</span></DetailItem>
+                <DetailItem><CalendarTodayIcon /> <span>{dob} Years Old</span></DetailItem>
+                <DetailItem><FormatListNumberedIcon /> <span>{carRegNumber}</span></DetailItem>
               </DetailsGrid>
-              <CarImage src={carPicture} alt="Car" />
+              <CarImage src={carPhoto} alt="Car" />
               <StarRow>
-                <StarRating rating={rating} />
-                <RatingBadge>{rating.toFixed(1)}</RatingBadge>
+                <StarRating rating={rating || 0} />
+                <RatingBadge>{rating?.toFixed(1) || 'N/A'}</RatingBadge>
               </StarRow>
             </ProfileInfo>
           </StyledPaper>
