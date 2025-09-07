@@ -11,9 +11,15 @@ interface JwtPayload {
 
 export const authenticate = (handler: NextApiHandler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
-    const authHeader = req.headers.authorization;
+    const cookies = req.headers.cookie;
+    const authHeader = cookies
+      ? cookies
+          .split(";")
+          .find((c) => c.trim().startsWith("token="))
+          ?.split("=")[1]
+      : null;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
