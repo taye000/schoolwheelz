@@ -106,37 +106,35 @@ const Drivers: React.FC = () => {
 
     return (
         <PageContainer>
-            {isLoading ? (
-                <Loading />
-            ) : drivers.length === 0 ? (
-                <p>No drivers found. Looks like the garage is empty! Add some drivers to get started.</p>
-            ) : (
-                <>
-                    <ContentContainer>
-                        {drivers.map(driver => (
-                            <ProfileCardContainer key={driver._id}>
-                                <ProfileCard
-                                    _id={driver._id}
-                                    fullName={driver.fullName}
-                                    photo={driver.photo}
-                                    phoneNumber={driver.phoneNumber}
-                                    sex={driver.sex}
-                                    dob={driver.dob}
-                                    carRegNumber={driver.carRegNumber}
-                                    carModel={driver.carModel}
-                                    carPhoto={driver.carPhoto}
-                                    rating={4.5} // Placeholder rating
-                                />
-                            </ProfileCardContainer>
-                        ))}
-                    </ContentContainer>
-                    <PaginationContainer>
-                        <PaginationButton onClick={handlePrev} disabled={page === 1}>Previous</PaginationButton>
-                        <PageIndicator>Page {page} of {totalPages}</PageIndicator>
-                        <PaginationButton onClick={handleNext} disabled={page === totalPages}>Next</PaginationButton>
-                    </PaginationContainer>
-                </>
-            )}
+            <ContentContainer>
+                {isLoading ? (
+                    <Loading />
+                ) : drivers.length === 0 ? (
+                    <p>No drivers found. Looks like the garage is empty! Add some drivers to get started.</p>
+                ) : (
+                    drivers.map(driver => (
+                        <ProfileCardContainer key={driver._id}>
+                            <ProfileCard
+                                _id={driver._id}
+                                fullName={driver.fullName}
+                                photo={driver.photo}
+                                phoneNumber={driver.phoneNumber}
+                                sex={driver.sex}
+                                dob={driver.dob}
+                                carRegNumber={driver.carRegNumber}
+                                carModel={driver.carModel}
+                                carPhoto={driver.carPhoto}
+                                rating={4.5} // Placeholder rating
+                            />
+                        </ProfileCardContainer>
+                    ))
+                )}
+            </ContentContainer>
+            <PaginationContainer>
+                <PaginationButton onClick={handlePrev} disabled={page === 1}>Previous</PaginationButton>
+                <PageIndicator>Page {page} of {totalPages}</PageIndicator>
+                <PaginationButton onClick={handleNext} disabled={page === totalPages}>Next</PaginationButton>
+            </PaginationContainer>
         </PageContainer>
     );
 };
