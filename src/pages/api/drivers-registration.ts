@@ -20,6 +20,7 @@ export default async function handler(
         const driver = await Driver.create({
           ...otherData,
           password: hashedPassword,
+          userType: "driver",
         });
         res.status(201).json({ success: true, data: driver });
       } catch (error) {

@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from "bcrypt";
+import { UserType } from "../../types/usertype";
 
 export interface IDriver extends Document {
   fullName: string;
@@ -14,6 +15,7 @@ export interface IDriver extends Document {
   carModel: string;
   carRegNumber: string;
   carPhoto: string;
+  userType: UserType;
   password: string;
 }
 
@@ -30,6 +32,11 @@ const DriverSchema: Schema = new Schema({
   carModel: { type: String, required: true },
   carRegNumber: { type: String, required: true, unique: true },
   carPhoto: { type: String, required: true },
+  userType: {
+    type: String,
+    enum: ["driver", "parent", "admin", "teacher"],
+    default: "driver",
+  },
   password: { type: String, required: true },
 });
 
@@ -39,6 +46,10 @@ DriverSchema.pre<IDriver>("save", async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
+
+DriverSchema.methods.comparePassword = async function (candidatePassword: string) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 export default mongoose.models.Driver ||
   mongoose.model<IDriver>("Driver", DriverSchema);

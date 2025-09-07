@@ -20,6 +20,7 @@ export default async function handler(
         const parent = await Parent.create({
           ...otherData,
           password: hashedPassword,
+          userType: "parent",
         });
         res.status(201).json({ success: true, data: parent });
       } catch (error) {

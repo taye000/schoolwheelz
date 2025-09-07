@@ -1,11 +1,13 @@
 import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from "bcrypt";
+import { UserType } from "../../types/usertype";
 
 export interface IParent extends Document {
   fullName: string;
   email: string;
   phoneNumber: string;
   address: string;
+  userType: UserType;
   password: string;
   children: Array<{
     name: string;
@@ -19,6 +21,11 @@ const ParentSchema: Schema = new Schema({
   email: { type: String, required: true, unique: true },
   phoneNumber: { type: String, required: true },
   address: { type: String, required: true },
+  userType: {
+    type: String,
+    enum: ["driver", "parent", "admin", "teacher"],
+    default: "parent",
+  },
   children: [
     {
       name: { type: String, required: true },
@@ -35,6 +42,12 @@ ParentSchema.pre<IParent>("save", async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
+
+ParentSchema.methods.comparePassword = async function (
+  candidatePassword: string
+) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 export default mongoose.models.Parent ||
   mongoose.model<IParent>("Parent", ParentSchema);
