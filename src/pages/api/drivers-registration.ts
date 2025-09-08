@@ -1,7 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/utils/dbConnect";
 import Driver from "@/models/DriversRegistration";
-import bcrypt from "bcrypt";
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,11 +14,9 @@ export default async function handler(
     case "POST":
       try {
         const { password, ...otherData } = req.body;
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
         const driver = await Driver.create({
           ...otherData,
-          password: hashedPassword,
+          password,
           userType: "driver",
         });
         res.status(201).json({ success: true, data: driver });
