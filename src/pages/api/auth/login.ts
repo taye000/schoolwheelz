@@ -3,7 +3,7 @@ import dbConnect from "@/utils/dbConnect";
 import Parent from "@/models/ParentsRegistration";
 import Driver from "@/models/DriversRegistration";
 import jwt from "jsonwebtoken";
-import cookie from "cookie";
+import { serialize } from "cookie";
 
 export default async function handler(
   req: NextApiRequest,
@@ -16,7 +16,8 @@ export default async function handler(
   switch (method) {
     case "POST":
       try {
-        const { email, password, userType } = req.body;
+        const { password, userType } = req.body;
+        const email = req.body.email.toLowerCase();
 
         if (!["parent", "driver"].includes(userType)) {
           return res
@@ -56,18 +57,22 @@ export default async function handler(
           { expiresIn: "1h" }
         );
 
-        res.setHeader("Set-Cookie", cookie.serialize("token", token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          maxAge: 60 * 60 * 24 * 7, // 1 week
-          path: "/"
-        }));
+        res.setHeader(
+          "Set-Cookie",
+          serialize("token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 60 * 60 * 24 * 7, // 1 week
+            path: "/",
+          })
+        );
 
         const { password: _, ...safeUser } = user.toObject();
 
         res.status(200).json({ success: true, data: safeUser });
       } catch (error) {
-        res.status(400).json({ success: false, error });
+        console.error(error);
+        res.status(400).json({ success: false, message: "Server error" });
       }
       break;
     default:

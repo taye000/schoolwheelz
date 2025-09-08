@@ -25,7 +25,7 @@ const DriverSchema: Schema = new Schema({
   dob: { type: Date, required: true },
   licenseNumber: { type: String, required: true, unique: true },
   idNumber: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true, lowercase: true },
   phoneNumber: { type: String, required: true },
   photo: { type: String, required: true },
   sex: { type: String, required: true },
@@ -48,7 +48,9 @@ DriverSchema.pre<IDriver>("save", async function (next) {
   next();
 });
 
-DriverSchema.methods.comparePassword = async function (candidatePassword: string) {
+DriverSchema.methods.comparePassword = async function (
+  candidatePassword: string
+) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
