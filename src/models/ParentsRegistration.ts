@@ -13,7 +13,8 @@ export interface IParent extends Document {
   children: Array<{
     name: string;
     age: number;
-    grade: string;
+    school: string;
+    gender: string;
   }>;
 }
 
@@ -31,7 +32,8 @@ const ParentSchema: Schema = new Schema({
     {
       name: { type: String, required: true },
       age: { type: Number, required: true },
-      grade: { type: String, required: true },
+      school: { type: String, required: true },
+      gender: { type: String, required: true },
     },
   ],
   password: { type: String, required: true },

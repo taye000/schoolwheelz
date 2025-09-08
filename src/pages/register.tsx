@@ -12,9 +12,10 @@ const RegisterForm: React.FC = () => {
     const [formData, setFormData] = useState({
         parentName: '',
         parentPhone: '',
+        parentEmail: '',
         parentLocation: '',
         children: [
-            { childName: '', school: '', location: '' }
+            { childName: '', school: '', location: '', gender: '', age: '' }
         ],
         pickupLocation: { lat: 0, lng: 0 },
         dropoffLocation: { lat: 0, lng: 0 },
@@ -25,12 +26,10 @@ const RegisterForm: React.FC = () => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target;
-        if (name === 'parentName' || name === 'parentPhone' || name === 'parentLocation' || name === 'recurring') {
-            setFormData({
-                ...formData,
-                [name]: type === 'checkbox' ? checked : value,
-            });
-        }
+        setFormData({
+            ...formData,
+            [name]: type === 'checkbox' ? checked : value,
+        });
     };
     const handleMapChange = (locations: { pickupLocation: { lat: number; lng: number }, dropoffLocation: { lat: number; lng: number } }) => {
         setFormData({
@@ -52,7 +51,7 @@ const RegisterForm: React.FC = () => {
     const handleAddChild = () => {
         setFormData({
             ...formData,
-            children: [...formData.children, { childName: '', school: '', location: '' }],
+            children: [...formData.children, { childName: '', school: '', location: '', gender: '', age: '' }],
         });
     };
 
@@ -69,16 +68,31 @@ const RegisterForm: React.FC = () => {
             toast.error('Passwords do not match!');
             return;
         }
+        const payload = {
+            fullName: formData.parentName,
+            email: formData.parentEmail,
+            phoneNumber: formData.parentPhone,
+            address: formData.parentLocation,
+            password: formData.password,
+            userType: "parent",
+            children: formData.children.map((child) => ({
+                name: child.childName,
+                school: child.school,
+                gender: child.gender,
+                age: 0,
+            })),
+        };
         try {
-            const response = await axios.post('/api/parents-registration', formData);
+            const response = await axios.post('/api/parents-registration', payload);
             if (response.status === 201) {
                 toast.success('Parent registered successfully!');
                 setFormData({
                     parentName: '',
                     parentPhone: '',
+                    parentEmail: '',
                     parentLocation: '',
                     children: [
-                        { childName: '', school: '', location: '' }
+                        { childName: '', school: '', location: '', gender: '', age: '' }
                     ],
                     pickupLocation: { lat: 0, lng: 0 },
                     dropoffLocation: { lat: 0, lng: 0 },
@@ -115,6 +129,15 @@ const RegisterForm: React.FC = () => {
                         margin="normal"
                         name="parentPhone"
                         value={formData.parentPhone}
+                        onChange={handleChange}
+                        required
+                    />
+                    <TextField
+                        label="Parent's Email"
+                        fullWidth
+                        margin="normal"
+                        name="parentEmail"
+                        value={formData.parentEmail}
                         onChange={handleChange}
                         required
                     />
@@ -160,6 +183,29 @@ const RegisterForm: React.FC = () => {
                                 onChange={e => handleChildChange(idx, 'childName', e.target.value)}
                                 required
                             />
+                            <TextField
+                                label="Age"
+                                type="number"
+                                fullWidth
+                                margin="normal"
+                                value={child.age || ""}
+                                onChange={(e) => handleChildChange(idx, "age", e.target.value)}
+                                required
+                            />
+                            <TextField
+                                select
+                                label="Gender"
+                                fullWidth
+                                margin="normal"
+                                value={child.gender || ""}
+                                onChange={(e) => handleChildChange(idx, "gender", e.target.value)}
+                                required
+                                SelectProps={{ native: true }}
+                            >
+                                <option value="">Select</option>
+                                <option value="Boy">Boy</option>
+                                <option value="Girl">Girl</option>
+                            </TextField>
                             <TextField
                                 label="School"
                                 fullWidth
