@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import styled from "styled-components";
 import ProfileCard from "@/components/Profilecard";
 import { Button, CircularProgress } from "@mui/material";
+import { useRouter } from 'next/router';
 
 const Map = dynamic(() => import("../components/Map"), { ssr: false });
 
@@ -61,6 +62,7 @@ interface User {
 }
 
 const Profile = () => {
+    const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number }>({
         lat: -3.745,
@@ -72,10 +74,13 @@ const Profile = () => {
         // Fetch logged-in user
         const fetchUser = async () => {
             try {
-                const res = await fetch("/api/auth/me");
+                const res = await fetch("/api/auth/me", {
+                    method: "GET",
+                    credentials: "include",
+                });
                 const data = await res.json();
                 if (data.success) {
-                    setUser(data.data);
+                    setUser(data.user);
                 }
             } catch (err) {
                 console.error("Failed to fetch user:", err);
@@ -96,6 +101,19 @@ const Profile = () => {
             );
         }
     }, []);
+
+    const handleLogout = async () => {
+        try {
+            const res = await fetch("/api/auth/logout", {
+                method: "POST",
+            });
+            if (res.ok) {
+                router.push("/login")
+            }
+        } catch (err) {
+            console.error("Logout failed:", err);
+        }
+    };
 
     if (loading) return <CircularProgress />;
 
@@ -142,7 +160,7 @@ const Profile = () => {
                     </MapContainer>
                 )}
             </ContentContainer>
-            <Button type="button" variant="contained" color="secondary" href="/api/auth/logout">
+            <Button type="button" variant="contained" color="secondary" onClick={handleLogout}>
                 Logout
             </Button>
         </PageContainer>

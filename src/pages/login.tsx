@@ -3,8 +3,10 @@ import { TextField, Button, Typography, MenuItem } from '@mui/material';
 import styled from 'styled-components';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/router';
 
 const Login: React.FC = () => {
+    const router = useRouter();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -22,7 +24,7 @@ const Login: React.FC = () => {
             const response = await axios.post('/api/auth/login', formData);
             if (response.status === 200) {
                 toast.success('Login successful!');
-                // Redirect or handle login success
+                router.push('/profile')
             }
         } catch (error) {
             console.error('Error logging in:', error);
