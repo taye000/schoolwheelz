@@ -7,9 +7,8 @@ interface Child {
     _id: string;
     name: string;
     age: number;
-    grade: string;
-    school?: string;
-    gender?: string;
+    school: string;
+    gender: string;
 }
 
 interface BookingFormProps {
@@ -77,7 +76,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
                                 onChange={() => toggleChild(child)}
                             />
                         }
-                        label={`${child.name} (Grade ${child.grade}, Age ${child.age})`}
+                        label={`${child.name} (${child.age} Years old - ${child.gender})`}
                     />
                 ))
             ) : (

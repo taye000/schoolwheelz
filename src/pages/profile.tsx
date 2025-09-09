@@ -58,7 +58,7 @@ interface User {
     carModel?: string;
     carRegNumber?: string;
     carPhoto?: string;
-    children?: Array<{ name: string; age: number; grade: string }>;
+    children?: Array<{ _id: string; name: string; age: number; grade: string; school: string; gender: string }>;
 }
 
 const Profile = () => {

@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/utils/dbConnect";
 import Booking from "@/models/Booking";
 import Driver from "@/models/DriversRegistration";
+import Parent from "@/models/ParentsRegistration";
 import { authenticate } from "@/utils/auth";
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -33,9 +34,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             .json({ success: false, message: "Not enough seats" });
         }
 
-        const validChildren = user.children.map((c: any) => c.toString());
-        const isValid = children.every((id: string) =>
-          validChildren.includes(id)
+        const parent = await Parent.findById(user.id);
+        if (!parent) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Parent not found" });
+        }
+
+        const validChildren = parent.children.map((c: any) => c._id.toString());
+        const isValid = children.every((c: any) =>
+          validChildren.includes(c._id?.toString())
         );
 
         if (!isValid) {
@@ -47,11 +55,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const booking = await Booking.create({
           driver: driver._id,
           parent: user.id,
-          children: children.map((c: any) => c._id),
+          children,
           seatsBooked,
           tripDate,
           status: "pending",
         });
+
+        await booking.populate([
+          { path: "driver" },
+          { path: "parent" },
+        ]);
 
         res.status(201).json({ success: true, data: booking });
       } catch (error) {

@@ -21,7 +21,7 @@ interface User {
   fullName: string;
   email: string;
   phoneNumber: string;
-  children?: Array<{ name: string; age: number; grade: string }>;
+  children?: Array<{ _id: string; name: string; age: number; grade: string; school: string; gender: string }>;
 }
 
 const DriverDetail: React.FC = () => {
