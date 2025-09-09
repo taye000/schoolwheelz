@@ -1,13 +1,3 @@
-const PageContainer = styled.div`
-  width: 80%;
-  margin: 0 auto;
-  padding: 20px;
-
-  @media (max-width: 768px) {
-    width: 100%;
-    padding: 10px;
-  }
-`;
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
@@ -23,12 +13,23 @@ import DriveEtaIcon from '@mui/icons-material/DriveEta';
 import { Button } from '@mui/material';
 import { DriverProfile } from '@/components/Profilecard';
 import Loading from '@/Loading';
+import BookingForm from '@/components/BookingForm';
+
+interface User {
+  _id: string;
+  userType: "parent" | "driver";
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  children?: Array<{ name: string; age: number; grade: string }>;
+}
 
 const DriverDetail: React.FC = () => {
   const router = useRouter();
   const { id } = router.query;
   const [isLoading, setIsLoading] = useState(true);
   const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const fetchDriver = async () => {
@@ -51,6 +52,19 @@ const DriverDetail: React.FC = () => {
 
     fetchDriver();
   }, [id]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        const data = await res.json();
+        if (data.success) setUser(data.user);
+      } catch (err) {
+        console.error("Fetch user failed:", err);
+      }
+    };
+    fetchUser();
+  }, []);
 
   if (isLoading) {
     return <Loading />;
@@ -125,18 +139,18 @@ const DriverDetail: React.FC = () => {
         <RightColumn>
           <Section>
             <SectionTitle>Schedule a Pick-up</SectionTitle>
-            <RegisterCard>
-              <p>Ready to schedule a pick-up with {driverProfile.fullName}?</p>
-              <Button
-                variant="contained"
-                color="primary"
-                href="/register"
-                fullWidth
-                size="large"
-              >
-                Register Now
-              </Button>
-            </RegisterCard>
+            {!user ? (
+              <RegisterCard>
+                <p>Ready to schedule a pick-up with {driverProfile.fullName}?</p>
+                <Button variant="contained" color="primary" href="/register" fullWidth size="large">
+                  Register Now
+                </Button>
+              </RegisterCard>
+            ) : user.userType === "parent" ? (
+              <BookingForm parent={user} driverId={driverProfile._id} />
+            ) : (
+              <p>Drivers cannot book rides.</p>
+            )}
           </Section>
         </RightColumn>
       </MainContent>
@@ -258,6 +272,17 @@ const ProfileCardContainer = styled.div`
   @media (max-width: 768px) {
     width: 100%;
     height: calc(34vh - 10px); /* Take 1/3 of the viewport height */
+  }
+`;
+
+const PageContainer = styled.div`
+  width: 80%;
+  margin: 0 auto;
+  padding: 20px;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 10px;
   }
 `;
 

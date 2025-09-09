@@ -16,6 +16,9 @@ export interface IDriver extends Document {
   carRegNumber: string;
   carPhoto: string;
   userType: UserType;
+  availableSeats: number;
+  averageRating: number;
+  ratingCount: number;
   password: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
@@ -33,6 +36,9 @@ const DriverSchema: Schema = new Schema({
   carModel: { type: String, required: true },
   carRegNumber: { type: String, required: true, unique: true },
   carPhoto: { type: String, required: true },
+  availableSeats: { type: Number, required: true },
+  averageRating: { type: Number, default: 0 },
+  ratingCount: { type: Number, default: 0 },
   userType: {
     type: String,
     enum: ["driver", "parent", "admin", "teacher"],

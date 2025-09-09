@@ -5,10 +5,13 @@ import dynamic from 'next/dynamic';
 import { MapContainer } from './profile';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/router';
 
 const Map = dynamic(() => import('../components/Map'), { ssr: false });
 
 const RegisterForm: React.FC = () => {
+    const router = useRouter();
+
     const [formData, setFormData] = useState({
         parentName: '',
         parentPhone: '',
@@ -79,7 +82,7 @@ const RegisterForm: React.FC = () => {
                 name: child.childName,
                 school: child.school,
                 gender: child.gender,
-                age: 0,
+                age: child.age,
             })),
         };
         try {
@@ -100,6 +103,7 @@ const RegisterForm: React.FC = () => {
                     password: '',
                     confirmPassword: '',
                 });
+                router.push('/drivers');
             }
         } catch (error) {
             console.error('Error registering parent:', error);

@@ -12,18 +12,16 @@ interface JwtPayload {
 export const authenticate = (handler: NextApiHandler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     const cookies = req.headers.cookie;
-    const authHeader = cookies
+    const token = cookies
       ? cookies
           .split(";")
           .find((c) => c.trim().startsWith("token="))
           ?.split("=")[1]
       : null;
 
-    if (!authHeader) {
+    if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-
-    const token = authHeader.split(" ")[1];
 
     try {
       const decoded = jwt.verify(

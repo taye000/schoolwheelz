@@ -32,10 +32,12 @@ const Navbar: React.FC = () => {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const res = await fetch("/api/auth/me");
+                const res = await fetch("/api/auth/me", {
+                    credentials: "include",
+                });
                 const data = await res.json();
                 if (data.success) {
-                    setUser(data.data);
+                    setUser(data.user);
                 }
             } catch (err) {
                 setUser(null); // not logged in
@@ -62,12 +64,16 @@ const Navbar: React.FC = () => {
                                 <NavLink>Profile</NavLink>
                             </Link>
                         )}
-                        <Link href="/register" passHref>
-                            <NavLink>Parents/Kids Registration</NavLink>
-                        </Link>
-                        <Link href="/driver-registration" passHref>
-                            <NavLink>Driver Registration</NavLink>
-                        </Link>
+                        {!user && (
+                            <Link href="/register" passHref>
+                                <NavLink>Parents/Kids Registration</NavLink>
+                            </Link>
+                        )}
+                        {!user && (
+                            <Link href="/driver-registration" passHref>
+                                <NavLink>Driver Registration</NavLink>
+                            </Link>
+                        )}
                         {!user && (
                             <Link href="/login" passHref>
                                 <NavLink>Sign In</NavLink>
