@@ -5,6 +5,7 @@ import Booking from "@/models/Booking";
 import Driver from "@/models/DriversRegistration";
 import Parent from "@/models/ParentsRegistration";
 import { authenticate } from "@/utils/auth";
+import { generateBookingId } from "@/utils/generateBookingID";
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
@@ -56,6 +57,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           seatsBooked,
           tripDate,
           status: "pending",
+          bookingId: generateBookingId(),
         });
 
         await booking.populate([{ path: "driver" }, { path: "parent" }]);

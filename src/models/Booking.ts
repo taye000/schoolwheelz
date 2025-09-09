@@ -9,6 +9,7 @@ export interface IBooking extends Document {
   status: "pending" | "accepted" | "completed" | "canceled";
   tripDate: Date;
   isDeleted: boolean;
+  bookingId: string;
 }
 
 const ChildSchema: Schema = new Schema({
@@ -25,6 +26,7 @@ const BookingSchema: Schema = new Schema(
     children: [{ type: ChildSchema, required: true }],
     seatsBooked: { type: Number, required: true },
     isDeleted: { type: Boolean, default: false },
+    bookingId: { type: String, required: true, unique: true },
     status: {
       type: String,
       enum: ["pending", "accepted", "completed", "canceled"],
