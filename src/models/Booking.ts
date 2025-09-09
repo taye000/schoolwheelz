@@ -10,6 +10,14 @@ export interface IBooking extends Document {
   tripDate: Date;
   isDeleted: boolean;
   bookingId: string;
+  tracking?: {
+    currentLocation?: {
+      type: "Point";
+      coordinates: [number, number]; // [longitude, latitude]
+    };
+    isTrackingEnabled: boolean;
+    lastUpdated?: Date;
+  };
 }
 
 const ChildSchema: Schema = new Schema({
@@ -33,9 +41,27 @@ const BookingSchema: Schema = new Schema(
       default: "pending",
     },
     tripDate: { type: Date, required: true },
+    tracking: {
+      currentLocation: {
+        type: {
+          type: String,
+          enum: ["Point"],
+          default: "Point",
+        },
+        coordinates: {
+          type: [Number], // [lng, lat]
+          default: [0, 0],
+        },
+      },
+      isTrackingEnabled: { type: Boolean, default: false },
+      lastUpdated: { type: Date },
+    },
   },
   { timestamps: true }
 );
+
+// Add a 2dsphere index for geospatial queries
+BookingSchema.index({ "tracking.currentLocation": "2dsphere" });
 
 export default mongoose.models.Booking ||
   mongoose.model<IBooking>("Booking", BookingSchema);
