@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import mongoose from "mongoose";
 import dbConnect from "@/utils/dbConnect";
 import Booking from "@/models/Booking";
 import Driver from "@/models/DriversRegistration";
@@ -94,13 +95,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         }
 
         // Fetch bookings for current user (parent or driver)
-        if (user.userType === "parent") baseFilter.parent = user.id;
-        else if (user.userType === "driver") baseFilter.driver = user.id;
-        else
+        if (user.userType === "parent") {
+          baseFilter.parent = new mongoose.Types.ObjectId(user.id);
+        } else if (user.userType === "driver") {
+          baseFilter.driver = new mongoose.Types.ObjectId(user.id);
+        } else {
           return res
             .status(403)
             .json({ success: false, message: "Unauthorized" });
+        }
 
+        console.log("Filter:", baseFilter); // Debug log
         const bookings = await Booking.find(baseFilter)
           .populate("driver")
           .populate("parent");
@@ -116,12 +121,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       try {
         const { bookingId, status } = req.body;
         if (!bookingId || !status)
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message: "bookingId and status are required",
-            });
+          return res.status(400).json({
+            success: false,
+            message: "bookingId and status are required",
+          });
 
         const booking = await Booking.findOne({
           _id: bookingId,
@@ -189,6 +192,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       res.setHeader("Allow", ["GET", "POST", "PUT", "DELETE"]);
       res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-};
+}
 
 export default authenticate(handler);

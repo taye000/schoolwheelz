@@ -64,6 +64,11 @@ const Navbar: React.FC = () => {
                                 <NavLink>Profile</NavLink>
                             </Link>
                         )}
+                        {user && (
+                            <Link href="/bookings" passHref>
+                                <NavLink>Bookings</NavLink>
+                            </Link>
+                        )}
                         {!user && (
                             <Link href="/register" passHref>
                                 <NavLink>Parents/Kids Registration</NavLink>
@@ -104,6 +109,13 @@ const Navbar: React.FC = () => {
                             <Link href="/profile" passHref>
                                 <ListItem onClick={toggleDrawer(false)}>
                                     <ListItemText primary="Profile" />
+                                </ListItem>
+                            </Link>
+                        )}
+                        {user && (
+                            <Link href="/bookings" passHref>
+                                <ListItem onClick={toggleDrawer(false)}>
+                                    <ListItemText primary="Bookings" />
                                 </ListItem>
                             </Link>
                         )}
