@@ -1,0 +1,157 @@
+export const dynamic = "force-dynamic";
+import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
+import dbConnect from "@/utils/dbConnect";
+import Booking from "@/models/Booking";
+import Driver from "@/models/DriversRegistration";
+import Parent from "@/models/ParentsRegistration";
+import { getAuthUser, AuthenticatedUser } from "@/utils/authApp";
+import { generateBookingId } from "@/utils/generateBookingID";
+
+export async function POST(req: NextRequest) {
+  await dbConnect();
+  const user = getAuthUser(req);
+  if (user instanceof NextResponse) return user;
+
+  try {
+    if (user.userType !== "parent") {
+      return NextResponse.json(
+        { success: false, message: "Only parents can book" },
+        { status: 403 }
+      );
+    }
+
+    const { driverId, children, seatsBooked, tripDate } = await req.json();
+
+    const driver = await Driver.findById(driverId);
+    if (!driver)
+      return NextResponse.json({ success: false, message: "Driver not found" }, { status: 404 });
+    if (driver.availableSeats < seatsBooked)
+      return NextResponse.json({ success: false, message: "Not enough seats" }, { status: 400 });
+
+    const parent = await Parent.findById(user.id);
+    if (!parent)
+      return NextResponse.json({ success: false, message: "Parent not found" }, { status: 404 });
+
+    const validChildIds = parent.children.map((c: any) => c._id?.toString());
+    const isValid = children.every((c: any) =>
+      validChildIds.includes(c._id?.toString())
+    );
+    if (!isValid)
+      return NextResponse.json({ success: false, message: "Invalid child selection" }, { status: 400 });
+
+    const booking = await Booking.create({
+      driver: driver._id,
+      parent: user.id,
+      children,
+      seatsBooked,
+      tripDate,
+      status: "pending",
+      bookingId: generateBookingId(),
+    });
+
+    await booking.populate([{ path: "driver" }, { path: "parent" }]);
+    return NextResponse.json({ success: true, data: booking }, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  await dbConnect();
+  const user = getAuthUser(req);
+  if (user instanceof NextResponse) return user;
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    const all = searchParams.get("all");
+
+    const baseFilter: any = { isDeleted: false };
+
+    if (id) {
+      const booking = await Booking.findOne({ _id: id, ...baseFilter })
+        .populate("driver")
+        .populate("parent");
+      if (!booking)
+        return NextResponse.json({ success: false, message: "Booking not found" }, { status: 404 });
+      return NextResponse.json({ success: true, data: booking });
+    }
+
+    if (all && user.userType === "admin") {
+      const bookings = await Booking.find(baseFilter).populate("driver").populate("parent");
+      return NextResponse.json({ success: true, data: bookings });
+    }
+
+    if (user.userType === "parent") {
+      baseFilter.parent = new mongoose.Types.ObjectId(user.id);
+    } else if (user.userType === "driver") {
+      baseFilter.driver = new mongoose.Types.ObjectId(user.id);
+    } else {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
+    }
+
+    const bookings = await Booking.find(baseFilter)
+      .populate("driver")
+      .populate("parent");
+    return NextResponse.json({ success: true, data: bookings });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  await dbConnect();
+  const user = getAuthUser(req);
+  if (user instanceof NextResponse) return user;
+
+  try {
+    const { bookingId, status } = await req.json();
+    if (!bookingId || !status)
+      return NextResponse.json({ success: false, message: "bookingId and status required" }, { status: 400 });
+
+    if (!["admin", "driver"].includes(user.userType))
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
+
+    const booking = await Booking.findOne({ _id: bookingId, isDeleted: false });
+    if (!booking)
+      return NextResponse.json({ success: false, message: "Booking not found" }, { status: 404 });
+
+    booking.status = status;
+    await booking.save();
+    await booking.populate([{ path: "driver" }, { path: "parent" }]);
+    return NextResponse.json({ success: true, data: booking });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  await dbConnect();
+  const user = getAuthUser(req);
+  if (user instanceof NextResponse) return user;
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const bookingId = searchParams.get("bookingId");
+    if (!bookingId)
+      return NextResponse.json({ success: false, message: "bookingId required" }, { status: 400 });
+
+    const booking = await Booking.findOne({ _id: bookingId, isDeleted: false });
+    if (!booking)
+      return NextResponse.json({ success: false, message: "Booking not found" }, { status: 404 });
+
+    if (user.userType !== "parent" || booking.parent.toString() !== user.id)
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
+
+    booking.isDeleted = true;
+    await booking.save();
+    return NextResponse.json({ success: true, message: "Booking cancelled" });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 });
+  }
+}

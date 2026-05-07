@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import styled from 'styled-components';
 import { Avatar, Paper } from '@mui/material';
@@ -21,6 +23,7 @@ export interface DriverProfile {
   carRegNumber: string;
   carModel: string;
   carPhoto: string;
+  availableSeats?: number;
   rating?: number;
 }
 

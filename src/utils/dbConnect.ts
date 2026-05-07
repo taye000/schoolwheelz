@@ -7,7 +7,7 @@ declare global {
   };
 }
 
-const MONGODB_URI = process.env.NEXT_PUBLIC_MONGODB_URI!; // Assert that it's defined
+const MONGODB_URI = process.env.MONGODB_URI!;
 
 /**
  * Global is used here to maintain a cached connection across hot reloads
