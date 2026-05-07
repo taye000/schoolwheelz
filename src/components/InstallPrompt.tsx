@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Button, IconButton, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import GetAppIcon from "@mui/icons-material/GetApp";
+import IosShareIcon from "@mui/icons-material/IosShare";
 import styled, { keyframes } from "styled-components";
 import { colors } from "@/lib/theme";
 
@@ -12,69 +13,100 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+const isIos = () =>
+  typeof navigator !== "undefined" &&
+  /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+const isInStandaloneMode = () =>
+  typeof window !== "undefined" &&
+  (window.matchMedia("(display-mode: standalone)").matches ||
+    ("standalone" in window.navigator &&
+      (window.navigator as { standalone?: boolean }).standalone === true));
+
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [ios, setIos] = useState(false);
 
   useEffect(() => {
-    // Don't show if already installed (standalone mode)
-    if (window.matchMedia("(display-mode: standalone)").matches) return;
-    // Don't show if previously dismissed this session
+    if (isInStandaloneMode()) return;
     if (sessionStorage.getItem("pwa-prompt-dismissed")) return;
+
+    const onIos = isIos();
+    setIos(onIos);
+
+    if (onIos) {
+      setTimeout(() => setVisible(true), 3500);
+      return;
+    }
 
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show after a short delay so users have time to see the app
       setTimeout(() => setVisible(true), 3500);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+
+    // DEV fallback: show prompt after 4s even without service worker
+    let devTimer: ReturnType<typeof setTimeout> | null = null;
+    if (process.env.NODE_ENV === "development") {
+      devTimer = setTimeout(() => setVisible(true), 4000);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      if (devTimer) clearTimeout(devTimer);
+    };
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setVisible(false);
+    if (deferredPrompt) {
+      await deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
     }
-    setDeferredPrompt(null);
+    setVisible(false);
   };
 
   const handleDismiss = () => {
     setVisible(false);
-    setDismissed(true);
     sessionStorage.setItem("pwa-prompt-dismissed", "1");
   };
 
-  if (!visible || dismissed) return null;
+  if (!visible) return null;
 
   return (
     <PromptBanner role="dialog" aria-label="Install School Wheelz app">
       <IconWrap>
-        <GetAppIcon sx={{ fontSize: 24, color: colors.skyBlue }} />
+        {ios ? (
+          <IosShareIcon sx={{ fontSize: 22, color: colors.skyBlue }} />
+        ) : (
+          <GetAppIcon sx={{ fontSize: 24, color: colors.skyBlue }} />
+        )}
       </IconWrap>
       <TextBlock>
         <Typography variant="body1" sx={{ fontWeight: 700, color: colors.deepNavy, lineHeight: 1.2 }}>
-          Add to Home Screen
+          {ios ? "Add to Home Screen" : "Install School Wheelz"}
         </Typography>
-        <Typography variant="body2" sx={{ color: colors.mutedText, fontSize: "0.8rem" }}>
-          Install School Wheelz for quick, offline-ready access.
+        <Typography variant="body2" sx={{ color: colors.mutedText, fontSize: "0.8rem", mt: 0.3 }}>
+          {ios
+            ? 'Tap the Share button below, then "Add to Home Screen".'
+            : "Install for quick, offline-ready access — no App Store needed."}
         </Typography>
       </TextBlock>
-      <Button
-        variant="contained"
-        size="small"
-        onClick={handleInstall}
-        sx={{ borderRadius: "50px", whiteSpace: "nowrap", flexShrink: 0, fontSize: "0.8rem" }}
-      >
-        Install
-      </Button>
-      <IconButton size="small" onClick={handleDismiss} aria-label="Dismiss install prompt">
+      {!ios && (
+        <Button
+          variant="contained"
+          size="small"
+          onClick={handleInstall}
+          sx={{ borderRadius: "50px", whiteSpace: "nowrap", flexShrink: 0, fontSize: "0.8rem" }}
+        >
+          Install
+        </Button>
+      )}
+      <IconButton size="small" onClick={handleDismiss} aria-label="Dismiss">
         <CloseIcon sx={{ fontSize: 18, color: colors.mutedText }} />
       </IconButton>
     </PromptBanner>
@@ -82,8 +114,8 @@ export default function InstallPrompt() {
 }
 
 const slideUp = keyframes`
-  from { transform: translateY(100%); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
+  from { transform: translateX(-50%) translateY(120%); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
 `;
 
 const PromptBanner = styled.div`
