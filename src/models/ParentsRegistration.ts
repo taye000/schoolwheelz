@@ -2,6 +2,20 @@ import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from "bcrypt";
 import { UserType } from "../../types/usertype";
 
+export interface IChildLocation {
+  lat: number;
+  lng: number;
+}
+
+export interface IChild {
+  name: string;
+  age: number;
+  school: string;
+  gender: string;
+  pickupLocation?: IChildLocation;
+  dropoffLocation?: IChildLocation;
+}
+
 export interface IParent extends Document {
   fullName: string;
   email: string;
@@ -10,12 +24,7 @@ export interface IParent extends Document {
   userType: UserType;
   password: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
-  children: Array<{
-    name: string;
-    age: number;
-    school: string;
-    gender: string;
-  }>;
+  children: IChild[];
 }
 
 const ParentSchema: Schema = new Schema({
@@ -34,6 +43,14 @@ const ParentSchema: Schema = new Schema({
       age: { type: Number, required: true },
       school: { type: String, required: true },
       gender: { type: String, required: true },
+      pickupLocation: {
+        lat: { type: Number },
+        lng: { type: Number },
+      },
+      dropoffLocation: {
+        lat: { type: Number },
+        lng: { type: Number },
+      },
     },
   ],
   password: { type: String, required: true },
@@ -47,7 +64,7 @@ ParentSchema.pre<IParent>("save", async function (next) {
 });
 
 ParentSchema.methods.comparePassword = async function (
-  candidatePassword: string
+  candidatePassword: string,
 ) {
   return bcrypt.compare(candidatePassword, this.password);
 };

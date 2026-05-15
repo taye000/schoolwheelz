@@ -182,18 +182,17 @@ export default function LocationPermissionPrompt({
       .query({ name: "geolocation" })
       .then((result) => {
         if (result.state === "granted") {
-          // Already have permission — silently get coords and call back
+          // Already permitted — silently get coords
           navigator.geolocation.getCurrentPosition(
             ({ coords }) => onGranted?.(coords),
             () => {}
           );
         } else if (result.state === "prompt") {
-          // Show our prompt UI before the browser asks
+          // Show our friendly prompt before the browser asks
           setVisible(true);
         } else {
-          // "denied" — show the prompt with the denied state so user knows what to do
-          setStatus("denied");
-          setVisible(true);
+          // "denied" at site level — don't block the user, just let map load
+          onDismiss?.();
         }
       })
       .catch(() => {
@@ -214,7 +213,9 @@ export default function LocationPermissionPrompt({
         }, 600);
       },
       () => {
-        setStatus("denied");
+        // Native prompt was denied — close modal silently, let map load
+        setVisible(false);
+        onDismiss?.();
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );

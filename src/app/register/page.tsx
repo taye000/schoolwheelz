@@ -10,6 +10,9 @@ import {
   Button,
   Box,
   IconButton,
+  InputAdornment,
+  Collapse,
+  Alert,
 } from "@mui/material";
 import styled from "styled-components";
 import dynamic from "next/dynamic";
@@ -18,99 +21,132 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import RoomIcon from "@mui/icons-material/Room";
+import PhoneInput from "@/components/PhoneInput";
 import { colors } from "@/lib/theme";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
-const MapContainer = styled.div`
-  flex: 2;
-  min-width: 300px;
-  height: 400px;
-  border-radius: 12px;
-  overflow: hidden;
-  margin: 16px 0;
-`;
+interface ChildFormData {
+  childName: string;
+  school: string;
+  gender: string;
+  age: string;
+  pickupLocation: { lat: number; lng: number };
+  dropoffLocation: { lat: number; lng: number };
+  showMap: boolean;
+}
+
+const defaultChild = (): ChildFormData => ({
+  childName: "",
+  school: "",
+  gender: "",
+  age: "",
+  pickupLocation: { lat: 0, lng: 0 },
+  dropoffLocation: { lat: 0, lng: 0 },
+  showMap: false,
+});
 
 export default function RegisterPage() {
   const router = useRouter();
 
-  const [formData, setFormData] = useState({
+  const [parentData, setParentData] = useState({
     parentName: "",
     parentPhone: "",
     parentEmail: "",
     parentLocation: "",
-    children: [{ childName: "", school: "", location: "", gender: "", age: "" }],
-    pickupLocation: { lat: 0, lng: 0 },
-    dropoffLocation: { lat: 0, lng: 0 },
-    recurring: false,
     password: "",
     confirmPassword: "",
+    recurring: false,
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [children, setChildren] = useState<ChildFormData[]>([defaultChild()]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
+
+  const handleParentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData({ ...formData, [name]: type === "checkbox" ? checked : value });
+    const updated = { ...parentData, [name]: type === "checkbox" ? checked : value };
+    setParentData(updated);
+    if (name === "confirmPassword" || name === "password") {
+      const pw = name === "password" ? value : updated.password;
+      const cpw = name === "confirmPassword" ? value : updated.confirmPassword;
+      setPasswordMismatch(cpw.length > 0 && pw !== cpw);
+    }
   };
 
-  const handleMapChange = (locations: {
-    pickupLocation: { lat: number; lng: number };
-    dropoffLocation: { lat: number; lng: number };
-  }) => {
-    setFormData({ ...formData, ...locations });
-  };
-
-  const handleChildChange = (index: number, field: string, value: string) => {
-    const updatedChildren = formData.children.map((child, i) =>
-      i === index ? { ...child, [field]: value } : child
+  const handleChildChange = (index: number, field: keyof ChildFormData, value: string) => {
+    setChildren((prev) =>
+      prev.map((child, i) => (i === index ? { ...child, [field]: value } : child))
     );
-    setFormData({ ...formData, children: updatedChildren });
   };
 
-  const handleAddChild = () => {
-    setFormData({
-      ...formData,
-      children: [
-        ...formData.children,
-        { childName: "", school: "", location: "", gender: "", age: "" },
-      ],
-    });
+  const handleChildMapChange = (
+    index: number,
+    locations: { pickupLocation: { lat: number; lng: number }; dropoffLocation: { lat: number; lng: number } }
+  ) => {
+    setChildren((prev) =>
+      prev.map((child, i) => (i === index ? { ...child, ...locations } : child))
+    );
   };
 
-  const handleRemoveChild = (index: number) => {
-    setFormData({
-      ...formData,
-      children: formData.children.filter((_, i) => i !== index),
-    });
+  const toggleChildMap = (index: number) => {
+    setChildren((prev) =>
+      prev.map((child, i) => (i === index ? { ...child, showMap: !child.showMap } : child))
+    );
+  };
+
+  const handleAddChild = () => setChildren((prev) => [...prev, defaultChild()]);
+
+  const handleRemoveChild = (index: number) =>
+    setChildren((prev) => prev.filter((_, i) => i !== index));
+
+  const handlePhoneChange = (value: string) => {
+    setParentData((prev) => ({ ...prev, parentPhone: value }));
+    setPhoneError(value.replace(/\D/g, "").length < 7);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match!");
+    if (parentData.password !== parentData.confirmPassword) {
+      toast.error("Passwords do not match.");
       return;
     }
+    if (parentData.parentPhone.replace(/\D/g, "").length < 7) {
+      toast.error("Please enter a valid phone number.");
+      return;
+    }
+
     const payload = {
-      fullName: formData.parentName,
-      email: formData.parentEmail,
-      phoneNumber: formData.parentPhone,
-      address: formData.parentLocation,
-      password: formData.password,
+      fullName: parentData.parentName,
+      email: parentData.parentEmail,
+      phoneNumber: parentData.parentPhone,
+      address: parentData.parentLocation,
+      password: parentData.password,
       userType: "parent",
-      children: formData.children.map((child) => ({
+      children: children.map((child) => ({
         name: child.childName,
         school: child.school,
         gender: child.gender,
-        age: child.age,
+        age: Number(child.age),
+        pickupLocation: child.pickupLocation,
+        dropoffLocation: child.dropoffLocation,
       })),
     };
+
     try {
       const response = await axios.post("/api/parents-registration", payload);
       if (response.status === 201) {
-        toast.success("Account created! Browse drivers to book your first ride.");
-        router.push("/drivers");
+        toast.success("Welcome to School Wheelz! 🎉");
+        router.push("/profile");
       }
-    } catch (error) {
-      toast.error("Registration failed. Please try again.");
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || "Registration failed. Please try again.";
+      toast.error(msg);
     }
   };
 
@@ -125,71 +161,147 @@ export default function RegisterPage() {
         </Typography>
 
         <Box component="form" onSubmit={handleSubmit}>
+          {/* Parent Details */}
           <SectionTitle>Parent Details</SectionTitle>
           <TwoCol>
-            <TextField label="Full Name" name="parentName" value={formData.parentName} onChange={handleChange} fullWidth required />
-            <TextField label="Phone Number" name="parentPhone" value={formData.parentPhone} onChange={handleChange} fullWidth required />
+            <TextField label="Full Name" name="parentName" value={parentData.parentName} onChange={handleParentChange} fullWidth required />
+            <PhoneInput
+              label="Phone Number"
+              value={parentData.parentPhone}
+              onChange={handlePhoneChange}
+              required
+              error={phoneError}
+              helperText={phoneError ? "Enter a valid phone number" : undefined}
+            />
           </TwoCol>
           <TwoCol>
-            <TextField label="Email" name="parentEmail" type="email" value={formData.parentEmail} onChange={handleChange} fullWidth required />
-            <TextField label="Home Address" name="parentLocation" value={formData.parentLocation} onChange={handleChange} fullWidth required />
-          </TwoCol>
-          <TwoCol>
-            <TextField label="Password" name="password" type="password" value={formData.password} onChange={handleChange} fullWidth required autoComplete="new-password" />
-            <TextField label="Confirm Password" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} fullWidth required autoComplete="new-password" />
+            <TextField label="Email" name="parentEmail" type="email" value={parentData.parentEmail} onChange={handleParentChange} fullWidth required />
+            <TextField label="Home Address" name="parentLocation" value={parentData.parentLocation} onChange={handleParentChange} fullWidth required />
           </TwoCol>
 
+          {/* Password */}
+          <SectionTitle>Password</SectionTitle>
+          <TwoCol>
+            <TextField
+              label="Password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={parentData.password}
+              onChange={handleParentChange}
+              fullWidth
+              required
+              autoComplete="new-password"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword((v) => !v)} edge="end" size="small">
+                      {showPassword ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              label="Confirm Password"
+              name="confirmPassword"
+              type={showConfirm ? "text" : "password"}
+              value={parentData.confirmPassword}
+              onChange={handleParentChange}
+              fullWidth
+              required
+              autoComplete="new-password"
+              error={passwordMismatch}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowConfirm((v) => !v)} edge="end" size="small">
+                      {showConfirm ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </TwoCol>
+          <Collapse in={passwordMismatch}>
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+              Passwords do not match.
+            </Alert>
+          </Collapse>
+
+          {/* Children */}
           <SectionTitle>Children</SectionTitle>
-          {formData.children.map((child, idx) => (
-            <ChildRow key={idx}>
-              <TextField label="Child's Name" fullWidth value={child.childName} onChange={(e) => handleChildChange(idx, "childName", e.target.value)} required size="small" />
-              <TextField label="Age" type="number" fullWidth value={child.age} onChange={(e) => handleChildChange(idx, "age", e.target.value)} required size="small" />
-              <TextField
-                select
-                label="Gender"
-                fullWidth
-                value={child.gender}
-                onChange={(e) => handleChildChange(idx, "gender", e.target.value)}
-                required
+          {children.map((child, idx) => (
+            <ChildCard key={idx}>
+              <ChildCardHeader>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: colors.deepNavy }}>
+                  Child {idx + 1}
+                </Typography>
+                {children.length > 1 && (
+                  <IconButton onClick={() => handleRemoveChild(idx)} color="error" size="small">
+                    <RemoveCircleOutlineIcon />
+                  </IconButton>
+                )}
+              </ChildCardHeader>
+
+              <ChildFields>
+                <TextField label="Child's Name" fullWidth value={child.childName} onChange={(e) => handleChildChange(idx, "childName", e.target.value)} required size="small" />
+                <TextField label="Age" type="number" fullWidth value={child.age} onChange={(e) => handleChildChange(idx, "age", e.target.value)} required size="small" inputProps={{ min: 1, max: 20 }} />
+                <TextField
+                  select
+                  label="Gender"
+                  fullWidth
+                  value={child.gender}
+                  onChange={(e) => handleChildChange(idx, "gender", e.target.value)}
+                  required
+                  size="small"
+                  SelectProps={{ native: true }}
+                >
+                  <option value="">Gender</option>
+                  <option value="Boy">Boy</option>
+                  <option value="Girl">Girl</option>
+                </TextField>
+                <TextField label="School" fullWidth value={child.school} onChange={(e) => handleChildChange(idx, "school", e.target.value)} required size="small" />
+              </ChildFields>
+
+              <Button
+                variant="outlined"
                 size="small"
-                SelectProps={{ native: true }}
+                startIcon={<RoomIcon />}
+                onClick={() => toggleChildMap(idx)}
+                sx={{ mt: 1.5, borderRadius: "50px", fontSize: "0.75rem" }}
               >
-                <option value="">Gender</option>
-                <option value="Boy">Boy</option>
-                <option value="Girl">Girl</option>
-              </TextField>
-              <TextField label="School" fullWidth value={child.school} onChange={(e) => handleChildChange(idx, "school", e.target.value)} required size="small" />
-              {formData.children.length > 1 && (
-                <IconButton onClick={() => handleRemoveChild(idx)} color="error" size="small">
-                  <RemoveCircleOutlineIcon />
-                </IconButton>
-              )}
-            </ChildRow>
+                {child.showMap ? "Hide Map" : "Set Pick-Up & Drop-Off for This Child"}
+              </Button>
+
+              <Collapse in={child.showMap}>
+                <MapHint>
+                  Click once to set pick-up (green), click again for drop-off (blue). Drag to adjust.
+                  {child.pickupLocation.lat !== 0 && <LocBadge>Pickup ✓</LocBadge>}
+                  {child.dropoffLocation.lat !== 0 && <LocBadge blue>Drop-off ✓</LocBadge>}
+                </MapHint>
+                <MapContainer>
+                  <Map mode="register" onLocationsChange={(locs) => handleChildMapChange(idx, locs)} />
+                </MapContainer>
+              </Collapse>
+            </ChildCard>
           ))}
+
           <Button
             variant="outlined"
             startIcon={<AddCircleOutlineIcon />}
             onClick={handleAddChild}
-            sx={{ mb: 3, borderRadius: "50px" }}
+            sx={{ mb: 4, borderRadius: "50px" }}
           >
-            Add Child
+            Add Another Child
           </Button>
 
-          <SectionTitle>Pick-Up & Drop-Off Locations</SectionTitle>
-          <Typography variant="body2" sx={{ color: colors.mutedText, mb: 1 }}>
-            Click on the map to set pick-up, then drop-off location.
-          </Typography>
-          <MapContainer>
-            <Map mode="register" onLocationsChange={handleMapChange} />
-          </MapContainer>
-
           <FormControlLabel
-            control={<Checkbox name="recurring" checked={formData.recurring} onChange={handleChange} />}
-            label="Set as recurring weekly pick-up"
-            sx={{ mb: 3 }}
+            control={<Checkbox name="recurring" checked={parentData.recurring} onChange={handleParentChange} />}
+            label="Set all routes as recurring weekly pick-ups"
+            sx={{ mb: 3, display: "block" }}
           />
 
-          <Button type="submit" variant="contained" size="large" fullWidth>
+          <Button type="submit" variant="contained" size="large" fullWidth disabled={passwordMismatch}>
             Create Account
           </Button>
 
@@ -204,6 +316,8 @@ export default function RegisterPage() {
     </PageWrapper>
   );
 }
+
+/* ── Styles ── */
 
 const PageWrapper = styled.div`
   background: ${colors.lightBg};
@@ -246,14 +360,54 @@ const TwoCol = styled.div`
   }
 `;
 
-const ChildRow = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-  padding: 16px;
-  background: ${colors.lightBg};
-  border-radius: 12px;
+const ChildCard = styled.div`
+  background: ${colors.pureWhite};
   border: 1px solid ${colors.border};
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+`;
+
+const ChildCardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+`;
+
+const ChildFields = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const MapHint = styled.p`
+  font-size: 0.8rem;
+  color: ${colors.mutedText};
+  margin: 12px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const LocBadge = styled.span<{ blue?: boolean }>`
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 50px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: ${(p) => (p.blue ? colors.skyBlue : colors.mintCream)};
+  color: ${colors.deepNavy};
+`;
+
+const MapContainer = styled.div`
+  height: 360px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 8px;
 `;
