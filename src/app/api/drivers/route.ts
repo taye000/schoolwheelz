@@ -11,11 +11,11 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get("page") ?? "1", 10);
     const limit = parseInt(searchParams.get("limit") ?? "10", 10);
 
-    const drivers = await Driver.find({})
+    const drivers = await Driver.find({ isProfileActive: true })
       .skip((page - 1) * limit)
       .limit(limit);
 
-    const total = await Driver.countDocuments();
+    const total = await Driver.countDocuments({ isProfileActive: true });
 
     return NextResponse.json({
       success: true,
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     console.error(error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch drivers." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

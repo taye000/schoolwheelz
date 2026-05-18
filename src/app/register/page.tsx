@@ -24,6 +24,7 @@ import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import RoomIcon from "@mui/icons-material/Room";
+import ChildCareIcon from "@mui/icons-material/ChildCare";
 import PhoneInput from "@/components/PhoneInput";
 import { colors } from "@/lib/theme";
 
@@ -63,6 +64,7 @@ export default function RegisterPage() {
   });
 
   const [children, setChildren] = useState<ChildFormData[]>([defaultChild()]);
+  const [showChildren, setShowChildren] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [passwordMismatch, setPasswordMismatch] = useState(false);
@@ -128,14 +130,14 @@ export default function RegisterPage() {
       address: parentData.parentLocation,
       password: parentData.password,
       userType: "parent",
-      children: children.map((child) => ({
+      children: showChildren ? children.map((child) => ({
         name: child.childName,
         school: child.school,
         gender: child.gender,
         age: Number(child.age),
         pickupLocation: child.pickupLocation,
         dropoffLocation: child.dropoffLocation,
-      })),
+      })) : [],
     };
 
     try {
@@ -228,8 +230,30 @@ export default function RegisterPage() {
             </Alert>
           </Collapse>
 
-          {/* Children */}
-          <SectionTitle>Children</SectionTitle>
+          {/* Children — optional */}
+          <ChildrenToggle
+            onClick={() => setShowChildren((v) => !v)}
+            role="button"
+            aria-expanded={showChildren}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <ChildCareIcon sx={{ color: colors.skyBlue }} />
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: colors.deepNavy }}>
+                  Add Children
+                  <OptionalBadge>optional</OptionalBadge>
+                </Typography>
+                <Typography variant="caption" sx={{ color: colors.mutedText }}>
+                  {showChildren ? "Collapse section" : "You can add children now or later from your profile"}
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton size="small" sx={{ color: colors.skyBlue, pointerEvents: "none" }}>
+              {showChildren ? <RemoveCircleOutlineIcon /> : <AddCircleOutlineIcon />}
+            </IconButton>
+          </ChildrenToggle>
+
+          <Collapse in={showChildren} unmountOnExit>
           {children.map((child, idx) => (
             <ChildCard key={idx}>
               <ChildCardHeader>
@@ -290,15 +314,16 @@ export default function RegisterPage() {
             variant="outlined"
             startIcon={<AddCircleOutlineIcon />}
             onClick={handleAddChild}
-            sx={{ mb: 4, borderRadius: "50px" }}
+            sx={{ mb: 2, borderRadius: "50px" }}
           >
             Add Another Child
           </Button>
+          </Collapse>
 
           <FormControlLabel
             control={<Checkbox name="recurring" checked={parentData.recurring} onChange={handleParentChange} />}
             label="Set all routes as recurring weekly pick-ups"
-            sx={{ mb: 3, display: "block" }}
+            sx={{ mt: 3, mb: 3, display: "block" }}
           />
 
           <Button type="submit" variant="contained" size="large" fullWidth disabled={passwordMismatch}>
@@ -410,4 +435,32 @@ const MapContainer = styled.div`
   border-radius: 12px;
   overflow: hidden;
   margin-top: 8px;
+`;
+
+const ChildrenToggle = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border: 1.5px dashed ${colors.border};
+  border-radius: 12px;
+  cursor: pointer;
+  margin: 20px 0 0;
+  transition: border-color 0.2s, background 0.2s;
+
+  &:hover {
+    border-color: ${colors.skyBlue};
+    background: rgba(66, 153, 225, 0.04);
+  }
+`;
+
+const OptionalBadge = styled.span`
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: ${colors.mutedText};
+  background: ${colors.border};
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 8px;
+  text-transform: lowercase;
 `;

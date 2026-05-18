@@ -2,6 +2,16 @@ import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from "bcrypt";
 import { UserType } from "../../types/usertype";
 
+export interface ICar {
+  _id?: mongoose.Types.ObjectId;
+  make: string;
+  model: string;
+  regNumber: string;
+  photo?: string;
+  availableSeats: number;
+  isActive: boolean;
+}
+
 export interface IDriver extends Document {
   fullName: string;
   dob: Date;
@@ -9,19 +19,29 @@ export interface IDriver extends Document {
   idNumber: string;
   email: string;
   phoneNumber: string;
-  photo: string;
+  photo?: string;
   sex: string;
-  carMake: string;
-  carModel: string;
-  carRegNumber: string;
-  carPhoto: string;
   userType: UserType;
-  availableSeats: number;
   averageRating: number;
   ratingCount: number;
   password: string;
+  /** New multi-car support */
+  cars: ICar[];
+  /** Admin has verified this driver's documents */
+  isValidated: boolean;
+  /** Visible to parents: true when validated AND has at least one active car */
+  isProfileActive: boolean;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
+
+const CarSchema = new Schema<ICar>({
+  make: { type: String, required: true },
+  model: { type: String, required: true },
+  regNumber: { type: String, required: true },
+  photo: { type: String },
+  availableSeats: { type: Number, required: true, min: 1, max: 20 },
+  isActive: { type: Boolean, default: false },
+});
 
 const DriverSchema: Schema = new Schema({
   fullName: { type: String, required: true },
@@ -30,13 +50,11 @@ const DriverSchema: Schema = new Schema({
   idNumber: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true, lowercase: true },
   phoneNumber: { type: String, required: true },
-  photo: { type: String, required: true },
+  photo: { type: String },
   sex: { type: String, required: true },
-  carMake: { type: String, required: true },
-  carModel: { type: String, required: true },
-  carRegNumber: { type: String, required: true, unique: true },
-  carPhoto: { type: String, required: true },
-  availableSeats: { type: Number, required: true },
+  cars: { type: [CarSchema], default: [] },
+  isValidated: { type: Boolean, default: false },
+  isProfileActive: { type: Boolean, default: false },
   averageRating: { type: Number, default: 0 },
   ratingCount: { type: Number, default: 0 },
   userType: {

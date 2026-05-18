@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import styled from "styled-components";
-import ProfileCard from "@/components/Profilecard";
 import {
+  Box,
   Button,
   CircularProgress,
   Chip,
@@ -15,6 +15,8 @@ import {
   InputAdornment,
   Collapse,
   Alert,
+  Tooltip,
+  MenuItem,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -27,6 +29,11 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import VerifiedIcon from "@mui/icons-material/Verified";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import PhoneInput from "@/components/PhoneInput";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
@@ -48,6 +55,16 @@ interface Child {
   dropoffLocation?: ChildLocation;
 }
 
+interface Car {
+  _id: string;
+  make: string;
+  model: string;
+  regNumber: string;
+  photo?: string;
+  availableSeats: number;
+  isActive: boolean;
+}
+
 interface User {
   _id: string;
   userType: "parent" | "driver";
@@ -57,9 +74,13 @@ interface User {
   address?: string;
   photo?: string;
   sex?: string;
-  carModel?: string;
-  carRegNumber?: string;
-  carPhoto?: string;
+  dob?: string;
+  licenseNumber?: string;
+  idNumber?: string;
+  averageRating?: number;
+  isValidated?: boolean;
+  isProfileActive?: boolean;
+  cars?: Car[];
   children?: Child[];
 }
 
@@ -82,6 +103,10 @@ export default function ProfilePage() {
   const [phoneError, setPhoneError] = useState(false);
   // Per-child map visibility
   const [childMapOpen, setChildMapOpen] = useState<boolean[]>([]);
+  // Driver car add form
+  const [showAddCar, setShowAddCar] = useState(false);
+  const [newCar, setNewCar] = useState({ make: "", model: "", regNumber: "", photo: "", availableSeats: "" });
+  const [addingCar, setAddingCar] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -123,6 +148,8 @@ export default function ProfilePage() {
     setNewPassword("");
     setConfirmPassword("");
     setPasswordMismatch(false);
+    setShowAddCar(false);
+    setNewCar({ make: "", model: "", regNumber: "", photo: "", availableSeats: "" });
     setChildMapOpen(Array(user.children?.length ?? 0).fill(false));
     setEditing(true);
   };
@@ -199,7 +226,8 @@ export default function ProfilePage() {
       const body: Record<string, unknown> = { ...editData };
       if (newPassword) body.password = newPassword;
 
-      const res = await fetch(`/api/parents/${user._id}`, {
+      const endpoint = user.userType === "driver" ? `/api/drivers/${user._id}` : `/api/parents/${user._id}`;
+      const res = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -207,7 +235,7 @@ export default function ProfilePage() {
       });
       const data = await res.json();
       if (data.success) {
-        setUser(data.data);
+        setUser((prev) => prev ? { ...prev, ...data.data } : data.data);
         setEditing(false);
         toast.success("Profile updated!");
       } else {
@@ -217,6 +245,76 @@ export default function ProfilePage() {
       toast.error("Network error. Please try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddCar = async () => {
+    if (!user) return;
+    if (!newCar.make || !newCar.model || !newCar.regNumber || !newCar.availableSeats) {
+      toast.error("Please fill in make, model, reg number and seats.");
+      return;
+    }
+    setAddingCar(true);
+    try {
+      const res = await fetch(`/api/drivers/${user._id}/cars`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ ...newCar, availableSeats: Number(newCar.availableSeats) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser((prev) => prev ? { ...prev, cars: data.data.cars, isProfileActive: data.data.isProfileActive } : prev);
+        setNewCar({ make: "", model: "", regNumber: "", photo: "", availableSeats: "" });
+        setShowAddCar(false);
+        toast.success("Car added!");
+      } else {
+        toast.error(data.error ?? "Failed to add car.");
+      }
+    } catch {
+      toast.error("Network error.");
+    } finally {
+      setAddingCar(false);
+    }
+  };
+
+  const handleSetActiveCar = async (carId: string) => {
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/drivers/${user._id}/cars/${carId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser((prev) => prev ? { ...prev, cars: data.data.cars, isProfileActive: data.data.isProfileActive } : prev);
+        toast.success("Active car updated!");
+      } else {
+        toast.error(data.error ?? "Failed to update.");
+      }
+    } catch {
+      toast.error("Network error.");
+    }
+  };
+
+  const handleRemoveCar = async (carId: string) => {
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/drivers/${user._id}/cars/${carId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser((prev) => prev ? { ...prev, cars: data.data.cars, isProfileActive: data.data.isProfileActive } : prev);
+        toast.success("Car removed.");
+      } else {
+        toast.error(data.error ?? "Failed to remove car.");
+      }
+    } catch {
+      toast.error("Network error.");
     }
   };
 
@@ -267,7 +365,7 @@ export default function ProfilePage() {
           <Typography variant="body2" sx={{ color: colors.mutedText }}>Manage your account details</Typography>
         </div>
         <HeaderActions>
-          {user.userType === "parent" && !editing && (
+          {!editing && (
             <Button variant="contained" startIcon={<EditIcon />} onClick={startEditing} sx={{ borderRadius: "50px" }}>
               Edit Profile
             </Button>
@@ -288,20 +386,33 @@ export default function ProfilePage() {
         </HeaderActions>
       </PageHeader>
 
-      <ContentGrid singleCol={user.userType === "parent"}>
+      <ContentGrid singleCol={user.userType === "parent" && !editing ? true : user.userType === "driver" ? false : true}>
         <LeftPane>
-          {user.userType === "driver" ? (
-            <ProfileCard
-              _id={user._id}
-              photo={user.photo || "/avatar.jpg"}
-              fullName={user.fullName}
-              phoneNumber={user.phoneNumber}
-              sex={user.sex || ""}
-              carModel={user.carModel || ""}
-              carRegNumber={user.carRegNumber || ""}
-              carPhoto={user.carPhoto || ""}
-              rating={4.5}
-              dob={""}
+          {user.userType === "driver" && !editing ? (
+            <DriverViewCard user={user} />
+          ) : user.userType === "driver" && editing ? (
+            <DriverEditCard
+              user={user}
+              editData={editData}
+              newPassword={newPassword}
+              confirmPassword={confirmPassword}
+              showNewPw={showNewPw}
+              showConfirmPw={showConfirmPw}
+              passwordMismatch={passwordMismatch}
+              phoneError={phoneError}
+              showAddCar={showAddCar}
+              newCar={newCar}
+              addingCar={addingCar}
+              onFieldChange={handleFieldChange}
+              onPasswordChange={handlePasswordChange}
+              onPhoneChange={(v) => { handleFieldChange("phoneNumber", v); setPhoneError(v.replace(/\D/g, "").length < 7); }}
+              onToggleNewPw={() => setShowNewPw((x) => !x)}
+              onToggleConfirmPw={() => setShowConfirmPw((x) => !x)}
+              onSetActiveCar={handleSetActiveCar}
+              onRemoveCar={handleRemoveCar}
+              onToggleAddCar={() => setShowAddCar((x) => !x)}
+              onNewCarChange={(field, val) => setNewCar((p) => ({ ...p, [field]: val }))}
+              onAddCar={handleAddCar}
             />
           ) : editing ? (
             /* ── EDIT MODE ── */
@@ -495,6 +606,243 @@ export default function ProfilePage() {
         )}
       </ContentGrid>
     </PageWrapper>
+  );
+}
+
+/* ─── Driver sub-components ─── */
+
+function DriverViewCard({ user }: { user: User }) {
+  const activeCar = user.cars?.find((c) => c.isActive);
+  return (
+    <DriverCard>
+      {/* Avatar + name */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2.5, mb: 3 }}>
+        <LargeAvatar src={user.photo || "/avatar.jpg"} alt={user.fullName} />
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: colors.deepNavy, lineHeight: 1.2 }}>
+            {user.fullName}
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, mt: 0.75, flexWrap: "wrap" }}>
+            <Chip label="Driver" size="small" sx={{ bgcolor: colors.skyBlue, color: "#fff", fontWeight: 600 }} />
+            {user.isValidated ? (
+              <Chip icon={<VerifiedIcon sx={{ fontSize: "14px !important" }} />} label="Validated" size="small" color="success" sx={{ fontWeight: 600 }} />
+            ) : (
+              <Chip icon={<HourglassEmptyIcon sx={{ fontSize: "14px !important" }} />} label="Pending Validation" size="small" color="warning" sx={{ fontWeight: 600 }} />
+            )}
+            {user.isProfileActive && (
+              <Chip label="Active" size="small" color="success" variant="outlined" sx={{ fontWeight: 600 }} />
+            )}
+          </Box>
+        </Box>
+        {user.averageRating !== undefined && user.averageRating > 0 && (
+          <RatingPill>
+            <StarFill>★</StarFill>
+            {user.averageRating.toFixed(1)}
+          </RatingPill>
+        )}
+      </Box>
+
+      <InfoRow><Label>Email</Label><Value>{user.email}</Value></InfoRow>
+      <InfoRow><Label>Phone</Label><Value>{user.phoneNumber}</Value></InfoRow>
+      {user.sex && <InfoRow><Label>Sex</Label><Value>{user.sex}</Value></InfoRow>}
+      {user.licenseNumber && <InfoRow><Label>License</Label><Value>{user.licenseNumber}</Value></InfoRow>}
+
+      {!user.isValidated && (
+        <ValidationNotice>
+          <HourglassEmptyIcon sx={{ fontSize: 18 }} />
+          <span>Your profile is under review. You'll be visible to parents once validated by an admin.</span>
+        </ValidationNotice>
+      )}
+
+      {/* Cars */}
+      <Divider sx={{ my: 3 }} />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+        <DirectionsCarIcon sx={{ color: colors.skyBlue }} />
+        <Typography variant="h6" sx={{ fontWeight: 600, color: colors.deepNavy }}>
+          My Vehicles ({user.cars?.length ?? 0})
+        </Typography>
+      </Box>
+
+      {!user.cars || user.cars.length === 0 ? (
+        <EmptyCarNotice>No vehicles added yet. Edit your profile to add one.</EmptyCarNotice>
+      ) : (
+        user.cars.map((car) => (
+          <CarViewItem key={car._id} active={car.isActive}>
+            {car.photo && <CarThumb src={car.photo} alt={car.model} />}
+            <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: colors.deepNavy }}>
+                  {car.make} {car.model}
+                </Typography>
+                {car.isActive && (
+                  <Chip label="Active" size="small" color="success" sx={{ fontWeight: 600 }} />
+                )}
+              </Box>
+              <Typography variant="body2" sx={{ color: colors.mutedText, fontFamily: "monospace" }}>{car.regNumber}</Typography>
+              <Typography variant="caption" sx={{ color: colors.mutedText }}>{car.availableSeats} seats available</Typography>
+            </Box>
+          </CarViewItem>
+        ))
+      )}
+    </DriverCard>
+  );
+}
+
+interface DriverEditCardProps {
+  user: User;
+  editData: any;
+  newPassword: string;
+  confirmPassword: string;
+  showNewPw: boolean;
+  showConfirmPw: boolean;
+  passwordMismatch: boolean;
+  phoneError: boolean;
+  showAddCar: boolean;
+  newCar: { make: string; model: string; regNumber: string; photo: string; availableSeats: string };
+  addingCar: boolean;
+  onFieldChange: (field: string, value: string) => void;
+  onPasswordChange: (field: "new" | "confirm", value: string) => void;
+  onPhoneChange: (value: string) => void;
+  onToggleNewPw: () => void;
+  onToggleConfirmPw: () => void;
+  onSetActiveCar: (carId: string) => void;
+  onRemoveCar: (carId: string) => void;
+  onToggleAddCar: () => void;
+  onNewCarChange: (field: string, value: string) => void;
+  onAddCar: () => void;
+}
+
+function DriverEditCard({
+  user, editData, newPassword, confirmPassword, showNewPw, showConfirmPw,
+  passwordMismatch, phoneError, showAddCar, newCar, addingCar,
+  onFieldChange, onPasswordChange, onPhoneChange, onToggleNewPw, onToggleConfirmPw,
+  onSetActiveCar, onRemoveCar, onToggleAddCar, onNewCarChange, onAddCar,
+}: DriverEditCardProps) {
+  return (
+    <EditCard>
+      <SectionTitle>Personal Info</SectionTitle>
+      <TextField label="Full Name" value={editData.fullName ?? ""} onChange={(e) => onFieldChange("fullName", e.target.value)} fullWidth size="small" sx={{ mb: 1.75 }} />
+      <PhoneInput
+        label="Phone Number"
+        value={editData.phoneNumber ?? ""}
+        onChange={onPhoneChange}
+        size="small"
+        error={phoneError}
+        helperText={phoneError ? "Enter a valid phone number" : undefined}
+      />
+
+      <SectionTitle>Change Password <OptionalTag>(optional)</OptionalTag></SectionTitle>
+      <TwoCol>
+        <TextField
+          label="New Password"
+          type={showNewPw ? "text" : "password"}
+          value={newPassword}
+          onChange={(e) => onPasswordChange("new", e.target.value)}
+          fullWidth size="small" autoComplete="new-password"
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={onToggleNewPw} edge="end" size="small">
+                  {showNewPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          label="Confirm New Password"
+          type={showConfirmPw ? "text" : "password"}
+          value={confirmPassword}
+          onChange={(e) => onPasswordChange("confirm", e.target.value)}
+          fullWidth size="small" error={passwordMismatch} autoComplete="new-password"
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={onToggleConfirmPw} edge="end" size="small">
+                  {showConfirmPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+      </TwoCol>
+      <Collapse in={passwordMismatch}>
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>Passwords do not match.</Alert>
+      </Collapse>
+
+      {/* Cars section */}
+      <SectionTitle style={{ marginTop: 8 }}>
+        <DirectionsCarIcon sx={{ fontSize: 16, color: colors.skyBlue }} />
+        Vehicles
+      </SectionTitle>
+
+      {(!user.cars || user.cars.length === 0) && (
+        <EmptyCarNotice>No vehicles yet — add one below.</EmptyCarNotice>
+      )}
+
+      {(user.cars ?? []).map((car) => (
+        <CarEditRow key={car._id}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: colors.deepNavy }}>
+              {car.make} {car.model}
+            </Typography>
+            <Typography variant="caption" sx={{ color: colors.mutedText, fontFamily: "monospace" }}>
+              {car.regNumber} · {car.availableSeats} seats
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Tooltip title={car.isActive ? "Currently active" : "Set as active car"}>
+              <IconButton
+                size="small"
+                onClick={() => !car.isActive && onSetActiveCar(car._id)}
+                sx={{ color: car.isActive ? "#38A169" : colors.mutedText }}
+              >
+                {car.isActive ? <RadioButtonCheckedIcon /> : <RadioButtonUncheckedIcon />}
+              </IconButton>
+            </Tooltip>
+            {!car.isActive && (
+              <Tooltip title="Remove vehicle">
+                <IconButton size="small" color="error" onClick={() => onRemoveCar(car._id)}>
+                  <RemoveCircleOutlineIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        </CarEditRow>
+      ))}
+
+      {/* Add car toggle */}
+      <AddCarToggle onClick={onToggleAddCar}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <AddCircleOutlineIcon sx={{ fontSize: 18, color: colors.skyBlue }} />
+          <Typography variant="body2" sx={{ fontWeight: 600, color: colors.deepNavy }}>
+            {showAddCar ? "Cancel" : "Add a Vehicle"}
+          </Typography>
+        </Box>
+      </AddCarToggle>
+
+      <Collapse in={showAddCar} unmountOnExit>
+        <AddCarForm>
+          <TwoCol>
+            <TextField label="Make" value={newCar.make} onChange={(e) => onNewCarChange("make", e.target.value)} size="small" fullWidth placeholder="e.g. Toyota" />
+            <TextField label="Model" value={newCar.model} onChange={(e) => onNewCarChange("model", e.target.value)} size="small" fullWidth placeholder="e.g. Probox" />
+          </TwoCol>
+          <TwoCol>
+            <TextField label="Reg Number" value={newCar.regNumber} onChange={(e) => onNewCarChange("regNumber", e.target.value)} size="small" fullWidth placeholder="KDA 123A" />
+            <TextField
+              label="Available Seats" type="number"
+              value={newCar.availableSeats}
+              onChange={(e) => onNewCarChange("availableSeats", e.target.value)}
+              size="small" fullWidth inputProps={{ min: 1, max: 20 }}
+            />
+          </TwoCol>
+          <TextField label="Car Photo URL (optional)" value={newCar.photo} onChange={(e) => onNewCarChange("photo", e.target.value)} size="small" fullWidth sx={{ mb: 1.5 }} />
+          <Button variant="contained" size="small" onClick={onAddCar} disabled={addingCar} sx={{ borderRadius: "50px" }}>
+            {addingCar ? "Adding…" : "Add Vehicle"}
+          </Button>
+        </AddCarForm>
+      </Collapse>
+    </EditCard>
   );
 }
 
@@ -693,4 +1041,119 @@ const LoadingText = styled.p`
 const EmptyEmoji = styled.div`
   font-size: 3.5rem;
   margin-bottom: 8px;
+`;
+
+/* ── Driver-specific ── */
+
+const DriverCard = styled.div`
+  background: ${colors.pureWhite};
+  border: 1px solid ${colors.border};
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 4px 24px rgba(26, 54, 93, 0.06);
+`;
+
+const LargeAvatar = styled.img`
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid ${colors.border};
+  flex-shrink: 0;
+`;
+
+const RatingPill = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: ${colors.deepNavy};
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 50px;
+  white-space: nowrap;
+`;
+
+const StarFill = styled.span`
+  color: #f6c90e;
+  font-size: 1rem;
+  line-height: 1;
+`;
+
+const ValidationNotice = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fffbeb;
+  border: 1px solid #f6e05e;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: #744210;
+  line-height: 1.5;
+`;
+
+const CarViewItem = styled.div<{ active?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: ${(p) => (p.active ? "rgba(56,161,105,0.06)" : colors.lightBg)};
+  border: 1.5px solid ${(p) => (p.active ? "#38A169" : colors.border)};
+  border-radius: 12px;
+  margin-bottom: 10px;
+`;
+
+const CarThumb = styled.img`
+  width: 64px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid ${colors.border};
+  flex-shrink: 0;
+`;
+
+const EmptyCarNotice = styled.p`
+  font-size: 0.85rem;
+  color: ${colors.mutedText};
+  font-style: italic;
+  margin: 8px 0 16px;
+`;
+
+const CarEditRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: ${colors.lightBg};
+  border: 1px solid ${colors.border};
+  border-radius: 10px;
+  margin-bottom: 8px;
+`;
+
+const AddCarToggle = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border: 1.5px dashed ${colors.border};
+  border-radius: 10px;
+  cursor: pointer;
+  margin: 12px 0 0;
+  transition: border-color 0.2s, background 0.2s;
+
+  &:hover {
+    border-color: ${colors.skyBlue};
+    background: rgba(66, 153, 225, 0.04);
+  }
+`;
+
+const AddCarForm = styled.div`
+  background: ${colors.lightBg};
+  border: 1px solid ${colors.border};
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 10px;
 `;

@@ -65,7 +65,6 @@ const Navbar: React.FC = () => {
 
                     <NavLinks>
                         <NavLink href="/drivers">Drivers</NavLink>
-                        {user && <NavLink href="/profile">Profile</NavLink>}
                         {user && <NavLink href="/bookings">Bookings</NavLink>}
                         {!user && <NavLink href="/register">Register</NavLink>}
                         {!user && <NavLink href="/driver-registration">Drive with us</NavLink>}
@@ -74,7 +73,7 @@ const Navbar: React.FC = () => {
                                 Sign In
                             </SignInButton>
                         ) : (
-                            <UserChip>
+                            <UserChip href="/profile">
                                 <Avatar sx={{ width: 28, height: 28, bgcolor: colors.skyBlue, fontSize: "0.75rem" }}>
                                     {user.fullName?.charAt(0).toUpperCase()}
                                 </Avatar>
@@ -105,7 +104,7 @@ const Navbar: React.FC = () => {
                     <List sx={{ flex: 1 }}>
                         {[
                             { href: "/drivers", label: "Drivers" },
-                            ...(user ? [{ href: "/profile", label: "Profile" }, { href: "/bookings", label: "Bookings" }] : []),
+                            ...(user ? [{ href: "/bookings", label: "Bookings" }, { href: "/profile", label: "My Profile" }] : []),
                             ...(!user ? [{ href: "/register", label: "Register as Parent" }, { href: "/driver-registration", label: "Become a Driver" }] : []),
                         ].map((item) => (
                             <Link key={item.href} href={item.href} style={{ textDecoration: "none" }}>
@@ -197,12 +196,19 @@ const SignInButton = styled(Button)`
   }
 ` as typeof Button;
 
-const UserChip = styled.div`
+const UserChip = styled(Link)`
   display: flex; align-items: center; gap: 8px;
   background: rgba(255,255,255,0.12);
   border-radius: 50px;
   padding: 4px 14px 4px 6px;
   color: #fff; font-size: 0.875rem; font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255,255,255,0.22);
+  }
 `;
 
 const MobileMenuButton = styled(IconButton)`
