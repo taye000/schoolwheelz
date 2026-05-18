@@ -96,6 +96,9 @@ export interface IDriver extends Document {
   /* Vehicles */
   cars: ICar[];
 
+  /* Schools served (references to approved School documents) */
+  schools: mongoose.Types.ObjectId[];
+
   /* Availability */
   availability?: IAvailability;
 
@@ -212,6 +215,9 @@ const DriverSchema: Schema = new Schema(
 
     /* Vehicles */
     cars: { type: [CarSchema], default: [] },
+
+    /* Schools served */
+    schools: [{ type: Schema.Types.ObjectId, ref: "School" }],
 
     /* Availability */
     availability: { type: AvailabilitySchema },

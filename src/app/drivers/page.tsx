@@ -4,9 +4,10 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styled from "styled-components";
 import ProfileCard, { DriverProfile } from "@/components/Profilecard";
-import { Typography, CircularProgress } from "@mui/material";
+import { Typography, CircularProgress, MenuItem, Select, FormControl, InputLabel } from "@mui/material";
 import { colors } from "@/lib/theme";
 import SearchIcon from "@mui/icons-material/Search";
+import SchoolIcon from "@mui/icons-material/School";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 
@@ -17,14 +18,23 @@ export default function DriversPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [fetchKey, setFetchKey] = useState(0);
+  const [schools, setSchools] = useState<{ _id: string; name: string; estate: string }[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState("");
   const pageSize = 12;
+
+  useEffect(() => {
+    axios.get("/api/schools").then((r) => { if (r.data.success) setSchools(r.data.data); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const fetchDrivers = async () => {
       setLoading(true);
       setError(false);
       try {
-        const response = await axios.get(`/api/drivers?page=${page}&limit=${pageSize}`);
+        const url = selectedSchool
+          ? `/api/drivers?page=${page}&limit=${pageSize}&school=${selectedSchool}`
+          : `/api/drivers?page=${page}&limit=${pageSize}`;
+        const response = await axios.get(url);
         if (response.data.success) {
           setDrivers(response.data.data);
           setTotalPages(response.data.pagination.pages ?? 1);
@@ -36,7 +46,7 @@ export default function DriversPage() {
       }
     };
     fetchDrivers();
-  }, [page, fetchKey]);
+  }, [page, fetchKey, selectedSchool]);
 
   return (
     <PageWrapper>
@@ -54,6 +64,34 @@ export default function DriversPage() {
           <span>{loading ? "Looking…" : drivers.length > 0 ? `${drivers.length} driver${drivers.length !== 1 ? "s" : ""} found` : "No drivers yet"}</span>
         </SearchBadge>
       </PageHeader>
+
+      {schools.length > 0 && (
+        <FilterBar>
+          <FormControl size="small" sx={{ minWidth: 240 }}>
+            <InputLabel id="school-filter-label">
+              <SchoolIcon sx={{ fontSize: 14, mr: 0.5, verticalAlign: "middle" }} />
+              Filter by School
+            </InputLabel>
+            <Select
+              labelId="school-filter-label"
+              value={selectedSchool}
+              label="Filter by School"
+              onChange={(e) => { setSelectedSchool(e.target.value); setPage(1); }}
+              sx={{ borderRadius: "50px" }}
+            >
+              <MenuItem value="">All Schools</MenuItem>
+              {schools.map((s) => (
+                <MenuItem key={s._id} value={s._id}>{s.name} — {s.estate}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {selectedSchool && (
+            <ClearFilter onClick={() => { setSelectedSchool(""); setPage(1); }}>
+              Clear filter ×
+            </ClearFilter>
+          )}
+        </FilterBar>
+      )}
 
       {loading ? (
         <LoadingWrap>
@@ -130,6 +168,17 @@ const SearchBadge = styled.div`
   font-size: 0.875rem;
   color: ${colors.mutedText};
   font-weight: 500;
+`;
+
+const FilterBar = styled.div`
+  display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;
+`;
+
+const ClearFilter = styled.button`
+  background: none; border: none; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; color: ${colors.errorRed};
+  padding: 4px 0;
+  &:hover { text-decoration: underline; }
 `;
 
 const DriversGrid = styled.div`

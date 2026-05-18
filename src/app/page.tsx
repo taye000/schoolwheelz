@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
-import styled from "styled-components";
+import React, { useEffect, useState } from "react";
+import styled, { keyframes } from "styled-components";
 import { Button, Typography, Box, Container, Grid } from "@mui/material";
 import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import ShieldIcon from "@mui/icons-material/Shield";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import StarIcon from "@mui/icons-material/Star";
+import SchoolIcon from "@mui/icons-material/School";
 import { colors } from "@/lib/theme";
 
 const features = [
@@ -28,6 +29,15 @@ const features = [
 ];
 
 export default function HomePage() {
+  const [schools, setSchools] = useState<{ _id: string; name: string; estate: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/schools")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setSchools(d.data); })
+      .catch(() => {});
+  }, []);
+
   return (
     <PageWrapper>
       {/* Hero */}
@@ -75,6 +85,31 @@ export default function HomePage() {
           </Grid>
         </Container>
       </FeaturesSection>
+
+      {/* CTA Banner */}
+      {schools.length > 0 && (
+        <SchoolsSection>
+          <Container maxWidth="lg">
+            <SchoolsLabel>Where We Operate</SchoolsLabel>
+            <SchoolsSectionTitle variant="h2">Schools We Cover 🏫</SchoolsSectionTitle>
+            <SchoolsSub>Our verified drivers serve these schools across Nairobi and beyond.</SchoolsSub>
+            <SchoolsGrid>
+              {schools.map((s, i) => (
+                <SchoolPill key={s._id} colorIdx={i % PILL_COLORS.length}>
+                  <SchoolIcon sx={{ fontSize: 14, mr: 0.75, opacity: 0.85 }} />
+                  <SchoolPillName>{s.name}</SchoolPillName>
+                  <SchoolPillEstate>{s.estate}</SchoolPillEstate>
+                </SchoolPill>
+              ))}
+            </SchoolsGrid>
+            <SchoolsFooter>
+              <a href="/drivers" style={{ color: colors.skyBlue, fontWeight: 700, fontSize: "0.9rem" }}>
+                Find a driver near your school →
+              </a>
+            </SchoolsFooter>
+          </Container>
+        </SchoolsSection>
+      )}
 
       {/* CTA Banner */}
       <CTABanner>
@@ -286,3 +321,80 @@ const CTABanner = styled.section`
   background: linear-gradient(135deg, ${deepNavy} 0%, #2a69ac 100%);
   padding: 96px 24px;
 `;
+
+/* ── Schools Section ── */
+
+const PILL_COLORS = [
+  { bg: "#EBF8FF", text: "#2C5282", border: "#BEE3F8" }, // blue
+  { bg: "#F0FFF4", text: "#22543D", border: "#9AE6B4" }, // green
+  { bg: "#FFFAF0", text: "#744210", border: "#FBD38D" }, // amber
+  { bg: "#FFF5F7", text: "#702459", border: "#FBB6CE" }, // pink
+  { bg: "#FAF5FF", text: "#44337A", border: "#D6BCFA" }, // purple
+  { bg: "#EDFDFD", text: "#234E52", border: "#81E6D9" }, // teal
+];
+
+const SchoolsSection = styled.section`
+  padding: 80px 24px;
+  background: linear-gradient(160deg, #f7fafc 0%, #ebf8ff 60%, #f0fff4 100%);
+`;
+
+const SchoolsLabel = styled.p`
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: ${colors.skyBlue};
+  margin-bottom: 10px;
+`;
+
+const SchoolsSectionTitle = styled(Typography)`
+  && {
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    font-weight: 800;
+    color: ${deepNavy};
+    margin-bottom: 8px;
+  }
+`;
+
+const SchoolsSub = styled.p`
+  font-size: 1rem;
+  color: ${colors.mutedText};
+  margin-bottom: 36px;
+  max-width: 500px;
+`;
+
+const SchoolsGrid = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+`;
+
+const SchoolPill = styled.div<{ colorIdx: number }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 100px;
+  border: 1.5px solid ${({ colorIdx }) => PILL_COLORS[colorIdx].border};
+  background: ${({ colorIdx }) => PILL_COLORS[colorIdx].bg};
+  color: ${({ colorIdx }) => PILL_COLORS[colorIdx].text};
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: default;
+  transition: transform 0.15s, box-shadow 0.15s;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+`;
+
+const SchoolPillName = styled.span`font-weight: 700;`;
+const SchoolPillEstate = styled.span`
+  font-weight: 400; opacity: 0.75;
+  &::before { content: " · "; }
+`;
+
+const SchoolsFooter = styled.div`
+  margin-top: 28px;
+`;
+

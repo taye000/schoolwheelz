@@ -35,6 +35,7 @@ import VerifiedIcon from "@mui/icons-material/Verified";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import CancelIcon from "@mui/icons-material/Cancel";
 import PhoneInput from "@/components/PhoneInput";
+import DriverSchoolsSection, { SchoolItem } from "@/components/DriverSchoolsSection";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
 
@@ -82,6 +83,7 @@ interface User {
   verificationStatus?: "pending" | "approved" | "rejected" | "suspended";
   isProfileActive?: boolean;
   cars?: Car[];
+  schools?: SchoolItem[];
   children?: Child[];
 }
 
@@ -378,7 +380,7 @@ export default function ProfilePage() {
       <ContentGrid singleCol={user.userType === "parent" && !editing ? true : user.userType === "driver" ? false : true}>
         <LeftPane>
           {user.userType === "driver" && !editing ? (
-            <DriverViewCard user={user} />
+            <DriverViewCard user={user} onSchoolsUpdate={(schools) => setUser((prev) => prev ? { ...prev, schools } : prev)} />
           ) : user.userType === "driver" && editing ? (
             <DriverEditCard
               user={user}
@@ -402,6 +404,7 @@ export default function ProfilePage() {
               onToggleAddCar={() => setShowAddCar((x) => !x)}
               onNewCarChange={(field, val) => setNewCar((p) => ({ ...p, [field]: val }))}
               onAddCar={handleAddCar}
+              onSchoolsUpdate={(schools) => setUser((prev) => prev ? { ...prev, schools } : prev)}
             />
           ) : editing ? (
             /* ── EDIT MODE ── */
@@ -600,7 +603,7 @@ export default function ProfilePage() {
 
 /* ─── Driver sub-components ─── */
 
-function DriverViewCard({ user }: { user: User }) {
+function DriverViewCard({ user, onSchoolsUpdate }: { user: User; onSchoolsUpdate: (schools: SchoolItem[]) => void }) {
   const activeCar = user.cars?.find((c) => c.isActive);
   return (
     <DriverCard>
@@ -689,6 +692,16 @@ function DriverViewCard({ user }: { user: User }) {
           </CarViewItem>
         ))
       )}
+
+      {/* Schools */}
+      <Divider sx={{ my: 3 }} />
+      <DriverSchoolsSection
+        driverId={user._id}
+        initialSchools={user.schools ?? []}
+        editable={false}
+        isOwner
+        onUpdate={onSchoolsUpdate}
+      />
     </DriverCard>
   );
 }
@@ -715,13 +728,14 @@ interface DriverEditCardProps {
   onToggleAddCar: () => void;
   onNewCarChange: (field: string, value: string) => void;
   onAddCar: () => void;
+  onSchoolsUpdate: (schools: SchoolItem[]) => void;
 }
 
 function DriverEditCard({
   user, editData, newPassword, confirmPassword, showNewPw, showConfirmPw,
   passwordMismatch, phoneError, showAddCar, newCar, addingCar,
   onFieldChange, onPasswordChange, onPhoneChange, onToggleNewPw, onToggleConfirmPw,
-  onSetActiveCar, onRemoveCar, onToggleAddCar, onNewCarChange, onAddCar,
+  onSetActiveCar, onRemoveCar, onToggleAddCar, onNewCarChange, onAddCar, onSchoolsUpdate,
 }: DriverEditCardProps) {
   return (
     <EditCard>
@@ -847,6 +861,15 @@ function DriverEditCard({
           </Button>
         </AddCarForm>
       </Collapse>
+
+      {/* Schools section */}
+      <Divider sx={{ my: 3 }} />
+      <DriverSchoolsSection
+        driverId={user._id}
+        initialSchools={user.schools ?? []}
+        editable
+        onUpdate={onSchoolsUpdate}
+      />
     </EditCard>
   );
 }

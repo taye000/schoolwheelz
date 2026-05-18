@@ -19,6 +19,7 @@ import VerifiedIcon from "@mui/icons-material/Verified";
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import { Avatar, Button, CircularProgress, Typography, Chip, LinearProgress } from "@mui/material";
 import BookingForm from "@/components/BookingForm";
+import DriverSchoolsSection, { SchoolItem } from "@/components/DriverSchoolsSection";
 import { colors } from "@/lib/theme";
 
 interface Car {
@@ -57,6 +58,7 @@ interface Driver {
   totalTrips: number;
   completedTrips: number;
   cars: Car[];
+  schools?: SchoolItem[];
   availability?: Availability;
   // legacy flat fields (old docs)
   carModel?: string;
@@ -299,6 +301,15 @@ export default function DriverDetailPage() {
               </CarCard>
             </Section>
           ) : null}
+
+          {/* Schools Served */}
+          <Section>
+            <DriverSchoolsSection
+              driverId={driver._id}
+              initialSchools={driver.schools ?? []}
+              editable={false}
+            />
+          </Section>
 
           {/* Reviews */}
           <Section>

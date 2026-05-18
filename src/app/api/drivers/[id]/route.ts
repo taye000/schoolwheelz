@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/utils/dbConnect";
 import Driver from "@/models/DriversRegistration";
+import "@/models/School"; // ensure School model is registered for populate
 import { getAuthUser } from "@/utils/authApp";
 
 export async function GET(
@@ -21,7 +22,9 @@ export async function GET(
   }
 
   try {
-    const driver = await Driver.findById(id).select("-password");
+    const driver = await Driver.findById(id)
+      .select("-password")
+      .populate("schools", "name estate");
     if (!driver) {
       return NextResponse.json(
         { success: false, error: "Driver not found." },

@@ -20,6 +20,11 @@ import {
   Avatar,
   IconButton,
   Tooltip,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -31,6 +36,9 @@ import PeopleIcon from "@mui/icons-material/People";
 import ChildCareIcon from "@mui/icons-material/ChildCare";
 import EventNoteIcon from "@mui/icons-material/EventNote";
 import VerifiedIcon from "@mui/icons-material/Verified";
+import SchoolIcon from "@mui/icons-material/School";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
 import { colors } from "@/lib/theme";
 
 interface Stats {
@@ -42,7 +50,7 @@ interface Stats {
   totalBookings: number;
 }
 
-type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars";
+type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools";
 
 const TABS: { label: string; value: TabView }[] = [
   { label: "Overview", value: "overview" },
@@ -53,6 +61,7 @@ const TABS: { label: string; value: TabView }[] = [
   { label: "Children", value: "children" },
   { label: "Bookings", value: "bookings" },
   { label: "Cars", value: "cars" },
+  { label: "Schools", value: "schools" },
 ];
 
 export default function AdminPage() {
@@ -158,6 +167,8 @@ export default function AdminPage() {
         {activeTab === "bookings" && !loading && <BookingsTable rows={rows} />}
 
         {activeTab === "cars" && !loading && <CarsTable rows={rows} />}
+
+        {activeTab === "schools" && <SchoolsTab />}
       </TabBody>
     </PageWrap>
   );
@@ -492,6 +503,220 @@ function CarsTable({ rows }: { rows: any[] }) {
         </TableBody>
       </Table>
     </StyledTable>
+  );
+}
+
+/* ─── Schools tab ─── */
+
+function SchoolsTab() {
+  const [schools, setSchools] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"approved" | "pending" | "rejected" | "all">("all");
+  // Add school dialog
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addEstate, setAddEstate] = useState("");
+  const [addSaving, setAddSaving] = useState(false);
+  // Approve dialog (edit before approving)
+  const [approveSchool, setApproveSchool] = useState<any | null>(null);
+  const [approveName, setApproveName] = useState("");
+  const [approveEstate, setApproveEstate] = useState("");
+  const [approveNote, setApproveNote] = useState("");
+  const [approveSaving, setApproveSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data } = await axios.get("/api/schools?status=all", { withCredentials: true });
+      setSchools(data.data);
+    } catch {
+      toast.error("Failed to load schools");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filtered = filter === "all" ? schools : schools.filter((s) => s.status === filter);
+  const pending = schools.filter((s) => s.status === "pending").length;
+
+  const handleAdd = async () => {
+    if (!addName.trim() || !addEstate.trim()) { toast.error("Name and estate required"); return; }
+    setAddSaving(true);
+    try {
+      await axios.post("/api/schools", { name: addName.trim(), estate: addEstate.trim() }, { withCredentials: true });
+      toast.success("School added!");
+      setAddOpen(false); setAddName(""); setAddEstate("");
+      load();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? "Failed");
+    } finally { setAddSaving(false); }
+  };
+
+  const openApprove = (s: any) => {
+    setApproveSchool(s); setApproveName(s.name); setApproveEstate(s.estate); setApproveNote("");
+  };
+
+  const handleApprove = async () => {
+    if (!approveSchool) return;
+    setApproveSaving(true);
+    try {
+      await axios.patch(`/api/schools/${approveSchool._id}/approve`, { name: approveName, estate: approveEstate, adminNote: approveNote }, { withCredentials: true });
+      toast.success("School approved!");
+      setApproveSchool(null);
+      load();
+    } catch { toast.error("Failed to approve"); }
+    finally { setApproveSaving(false); }
+  };
+
+  const handleReject = async (id: string) => {
+    try {
+      await axios.patch(`/api/schools/${id}/reject`, {}, { withCredentials: true });
+      toast.success("School rejected.");
+      load();
+    } catch { toast.error("Failed to reject"); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this school permanently?")) return;
+    try {
+      await axios.delete(`/api/schools/${id}/reject`, { withCredentials: true });
+      toast.success("Deleted.");
+      load();
+    } catch { toast.error("Failed to delete"); }
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3, flexWrap: "wrap", gap: 2 }}>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          {(["all", "approved", "pending", "rejected"] as const).map((s) => (
+            <Chip
+              key={s}
+              label={s === "all" ? `All (${schools.length})` : s === "pending" ? `Pending (${pending})` : `${s.charAt(0).toUpperCase() + s.slice(1)} (${schools.filter(x => x.status === s).length})`}
+              onClick={() => setFilter(s)}
+              color={filter === s ? "primary" : "default"}
+              variant={filter === s ? "filled" : "outlined"}
+              sx={{ fontWeight: 600, textTransform: "capitalize" }}
+            />
+          ))}
+        </Box>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddOpen(true)} sx={{ borderRadius: "50px" }}>
+          Add School
+        </Button>
+      </Box>
+
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+      ) : (
+        <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${colors.border}`, borderRadius: 3 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ background: colors.lightBg }}>
+                <TableCell sx={{ fontWeight: 700 }}>School</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Estate</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Requested By</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Note</TableCell>
+                <TableCell sx={{ fontWeight: 700, textAlign: "right" }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ color: colors.mutedText, py: 4 }}>No schools found</TableCell>
+                </TableRow>
+              )}
+              {filtered.map((s) => (
+                <TableRow key={s._id} hover>
+                  <TableCell sx={{ fontWeight: 600 }}>{s.name}</TableCell>
+                  <TableCell>{s.estate}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={s.status}
+                      size="small"
+                      sx={{
+                        fontWeight: 700, textTransform: "capitalize",
+                        bgcolor: s.status === "approved" ? "#C6F6D5" : s.status === "pending" ? "#FEFCBF" : "#FED7D7",
+                        color: s.status === "approved" ? "#22543D" : s.status === "pending" ? "#744210" : "#742A2A",
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ color: colors.mutedText, fontSize: "0.8rem" }}>
+                    {s.requestedBy ? `${s.requestedBy.fullName}` : "Admin"}
+                  </TableCell>
+                  <TableCell sx={{ color: colors.mutedText, fontSize: "0.78rem", maxWidth: 160 }}>
+                    {s.requestNote || s.adminNote || "—"}
+                  </TableCell>
+                  <TableCell align="right">
+                    {s.status === "pending" && (
+                      <>
+                        <Tooltip title="Review & Approve">
+                          <IconButton size="small" color="success" onClick={() => openApprove(s)}>
+                            <CheckCircleIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Reject">
+                          <IconButton size="small" color="error" onClick={() => handleReject(s._id)}>
+                            <CancelIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
+                    {s.status === "approved" && (
+                      <Tooltip title="Edit">
+                        <IconButton size="small" onClick={() => openApprove(s)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    <Tooltip title="Delete permanently">
+                      <IconButton size="small" color="error" onClick={() => handleDelete(s._id)}>
+                        <CancelIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {/* Add school dialog */}
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Add School</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "12px !important" }}>
+          <TextField label="School Name" value={addName} onChange={(e) => setAddName(e.target.value)} size="small" fullWidth />
+          <TextField label="Estate / Area" value={addEstate} onChange={(e) => setAddEstate(e.target.value)} size="small" fullWidth />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setAddOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleAdd} disabled={addSaving} sx={{ borderRadius: "50px" }}>
+            {addSaving ? "Saving…" : "Add School"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Approve/edit dialog */}
+      <Dialog open={!!approveSchool} onClose={() => setApproveSchool(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {approveSchool?.status === "pending" ? "Review & Approve School" : "Edit School"}
+        </DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "12px !important" }}>
+          <TextField label="School Name" value={approveName} onChange={(e) => setApproveName(e.target.value)} size="small" fullWidth />
+          <TextField label="Estate / Area" value={approveEstate} onChange={(e) => setApproveEstate(e.target.value)} size="small" fullWidth />
+          <TextField label="Admin note (optional)" value={approveNote} onChange={(e) => setApproveNote(e.target.value)} size="small" fullWidth multiline rows={2} />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setApproveSchool(null)}>Cancel</Button>
+          <Button variant="contained" color="success" onClick={handleApprove} disabled={approveSaving} sx={{ borderRadius: "50px" }}>
+            {approveSaving ? "Saving…" : approveSchool?.status === "pending" ? "Approve" : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
 

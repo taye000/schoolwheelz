@@ -4,6 +4,7 @@ import dbConnect from "@/utils/dbConnect";
 import Driver from "@/models/DriversRegistration";
 import Parent from "@/models/ParentsRegistration";
 import Booking from "@/models/Booking";
+import School from "@/models/School";
 import { getAuthUser } from "@/utils/authApp";
 
 function requireAdmin(req: NextRequest) {
@@ -122,6 +123,20 @@ export async function GET(req: NextRequest) {
           })),
         );
         return NextResponse.json({ success: true, data: cars });
+      }
+
+      case "schools": {
+        const statusFilter = new URL(req.url).searchParams.get("status");
+        const q = new URL(req.url).searchParams.get("q");
+        const filter: Record<string, unknown> = {};
+        if (statusFilter && statusFilter !== "all")
+          filter.status = statusFilter;
+        if (q) filter.name = { $regex: q, $options: "i" };
+        const schools = await School.find(filter)
+          .populate("requestedBy", "fullName email")
+          .sort({ createdAt: -1 })
+          .lean();
+        return NextResponse.json({ success: true, data: schools });
       }
 
       default:
