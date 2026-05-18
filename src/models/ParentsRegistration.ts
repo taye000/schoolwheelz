@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { UserType } from "../../types/usertype";
 
 export interface IChildLocation {
