@@ -7,7 +7,12 @@ import Parent from "@/models/ParentsRegistration";
 import { getAuthUser } from "@/utils/authApp";
 import { sendSMS, SmsTemplates } from "@/utils/sms";
 
-export async function PATCH(
+/**
+ * POST /api/bookings/[id]/start
+ * Driver taps "Start Trip" — changes status to in_progress,
+ * enables tracking, and sends "Driver on the way" SMS to parent.
+ */
+export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
@@ -15,14 +20,14 @@ export async function PATCH(
   const user = getAuthUser(req);
   if (user instanceof NextResponse) return user;
 
-  try {
-    if (user.userType !== "driver") {
-      return NextResponse.json(
-        { success: false, message: "Only drivers can accept bookings" },
-        { status: 403 },
-      );
-    }
+  if (user.userType !== "driver") {
+    return NextResponse.json(
+      { success: false, message: "Only drivers can start trips" },
+      { status: 403 },
+    );
+  }
 
+  try {
     const booking = await Booking.findById(params.id);
     if (!booking)
       return NextResponse.json(
@@ -36,28 +41,43 @@ export async function PATCH(
         { status: 403 },
       );
 
-    if (booking.status !== "pending")
+    if (booking.status !== "accepted")
       return NextResponse.json(
-        { success: false, message: "Booking already processed" },
+        {
+          success: false,
+          message: `Cannot start a booking with status "${booking.status}"`,
+        },
         { status: 400 },
       );
 
-    const driver = await Driver.findById(user.id);
-    if (!driver)
-      return NextResponse.json(
-        { success: false, message: "Driver not found" },
-        { status: 404 },
-      );
+    // Mark boarded children as picked up
+    const { boardedChildIds = [] }: { boardedChildIds?: string[] } = await req
+      .json()
+      .catch(() => ({ boardedChildIds: [] }));
 
-    booking.status = "accepted";
+    const now = new Date();
+    booking.children.forEach((child: any) => {
+      if (boardedChildIds.includes(child._id.toString())) {
+        child.pickedUp = true;
+        child.pickupTime = now;
+      }
+    });
+
+    booking.status = "in_progress";
+    booking.tracking.isTrackingEnabled = true;
+    booking.tracking.lastUpdated = new Date();
+    booking.markModified("tracking");
     await booking.save();
 
-    // SMS parent
+    // Update driver liveStatus
+    await Driver.findByIdAndUpdate(user.id, { liveStatus: "on_trip" });
+
+    // SMS parent: "Driver on the way"
     const parent = await Parent.findById(booking.parent);
     if (parent?.phoneNumber) {
       await sendSMS(
         parent.phoneNumber,
-        SmsTemplates.bookingAccepted(parent.fullName, driver.fullName),
+        SmsTemplates.driverOnTheWay(user.fullName, 10), // default 10-min ETA
       );
     }
 

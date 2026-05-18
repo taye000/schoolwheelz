@@ -7,6 +7,11 @@ import Parent from "@/models/ParentsRegistration";
 import { getAuthUser } from "@/utils/authApp";
 import { sendSMS, SmsTemplates } from "@/utils/sms";
 
+/**
+ * PATCH /api/bookings/[id]/reject
+ * Driver declines a pending booking request.
+ * Status → "canceled". Parent receives an SMS with an optional reason.
+ */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -15,14 +20,14 @@ export async function PATCH(
   const user = getAuthUser(req);
   if (user instanceof NextResponse) return user;
 
-  try {
-    if (user.userType !== "driver") {
-      return NextResponse.json(
-        { success: false, message: "Only drivers can accept bookings" },
-        { status: 403 },
-      );
-    }
+  if (user.userType !== "driver") {
+    return NextResponse.json(
+      { success: false, message: "Only drivers can reject bookings" },
+      { status: 403 },
+    );
+  }
 
+  try {
     const booking = await Booking.findById(params.id);
     if (!booking)
       return NextResponse.json(
@@ -38,26 +43,27 @@ export async function PATCH(
 
     if (booking.status !== "pending")
       return NextResponse.json(
-        { success: false, message: "Booking already processed" },
+        {
+          success: false,
+          message: `Cannot reject a booking with status "${booking.status}"`,
+        },
         { status: 400 },
       );
 
-    const driver = await Driver.findById(user.id);
-    if (!driver)
-      return NextResponse.json(
-        { success: false, message: "Driver not found" },
-        { status: 404 },
-      );
+    const { reason } = await req.json().catch(() => ({ reason: undefined }));
 
-    booking.status = "accepted";
+    booking.status = "canceled";
     await booking.save();
 
-    // SMS parent
-    const parent = await Parent.findById(booking.parent);
+    const [driver, parent] = await Promise.all([
+      Driver.findById(user.id, "fullName"),
+      Parent.findById(booking.parent, "fullName phoneNumber"),
+    ]);
+
     if (parent?.phoneNumber) {
       await sendSMS(
         parent.phoneNumber,
-        SmsTemplates.bookingAccepted(parent.fullName, driver.fullName),
+        SmsTemplates.bookingRejected(driver?.fullName ?? "The driver", reason),
       );
     }
 

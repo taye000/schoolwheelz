@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     if (user.userType !== "parent") {
       return NextResponse.json(
         { success: false, message: "Only parents can review" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     if (!booking || booking.status !== "completed") {
       return NextResponse.json(
         { success: false, message: "Cannot review this booking" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -50,7 +50,51 @@ export async function POST(req: NextRequest) {
     console.error(error);
     return NextResponse.json(
       { success: false, message: "Server error" },
-      { status: 500 }
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * GET /api/reviews?driverId=xxx&limit=20&page=1
+ * Public — returns reviews for a driver, newest first, with parent name.
+ */
+export async function GET(req: NextRequest) {
+  await dbConnect();
+  const { searchParams } = new URL(req.url);
+  const driverId = searchParams.get("driverId");
+  const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 50);
+  const page = Math.max(parseInt(searchParams.get("page") ?? "1", 10), 1);
+
+  if (!driverId) {
+    return NextResponse.json(
+      { success: false, error: "driverId required." },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const [reviews, total] = await Promise.all([
+      Review.find({ driver: driverId })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate("parent", "fullName photo")
+        .lean(),
+      Review.countDocuments({ driver: driverId }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: reviews,
+      total,
+      pages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { success: false, error: "Failed to fetch reviews." },
+      { status: 500 },
     );
   }
 }

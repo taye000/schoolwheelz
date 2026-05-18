@@ -1,17 +1,13 @@
 "use client";
 
-import React from 'react';
-import styled from 'styled-components';
-import { Avatar, Paper } from '@mui/material';
-import StarIcon from '@mui/icons-material/Star';
-import StarHalfIcon from '@mui/icons-material/StarHalf';
-import StarOutlineIcon from '@mui/icons-material/StarOutline';
-import PersonIcon from '@mui/icons-material/Person';
-import PhoneIcon from '@mui/icons-material/Phone';
-import WcIcon from '@mui/icons-material/Wc';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
-import Link from 'next/link';
+import React from "react";
+import styled from "styled-components";
+import { Avatar } from "@mui/material";
+import StarIcon from "@mui/icons-material/Star";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import EventSeatIcon from "@mui/icons-material/EventSeat";
+import Link from "next/link";
+import { colors } from "@/lib/theme";
 
 export interface DriverProfile {
   _id: string;
@@ -22,231 +18,185 @@ export interface DriverProfile {
   dob: string;
   carRegNumber: string;
   carModel: string;
+  carMake?: string;
   carPhoto: string;
   availableSeats?: number;
   rating?: number;
+  averageRating?: number;
+  verificationStatus?: string;
 }
-
-const StarRating: React.FC<{ rating: number }> = ({ rating }) => {
-  const fullStars = Math.floor(rating);
-  const halfStar = rating % 1 !== 0;
-  const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
-
-  return (
-    <StarsContainer>
-      {Array.from({ length: fullStars }).map((_, index) => (
-        <StarIcon key={`full-${index}`} />
-      ))}
-      {halfStar && <StarHalfIcon />}
-      {Array.from({ length: emptyStars }).map((_, index) => (
-        <StarOutlineIcon key={`empty-${index}`} />
-      ))}
-    </StarsContainer>
-  );
-};
 
 const ProfileCard: React.FC<DriverProfile> = ({
   _id,
   photo,
   fullName,
-  phoneNumber,
-  sex,
-  dob,
   carRegNumber,
   carModel,
-  carPhoto,
+  carMake,
+  availableSeats,
   rating,
+  averageRating,
+  verificationStatus,
 }) => {
+  const displayRating = averageRating ?? rating ?? 0;
+  const isApproved = verificationStatus === "approved" || !verificationStatus;
+
   return (
-    <ProfileContainer>
-      <Link href={`/drivers/${_id}`} passHref legacyBehavior>
-        <StyledLink>
-          <StyledPaper elevation={3}>
-            <AvatarContainer>
-              <Avatar src={photo} alt="Profile" sx={{ width: 100, height: 100, border: '4px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
-            </AvatarContainer>
-            <ProfileInfo>
-              <NameRow>
-                <PersonIcon style={{ marginRight: 8 }} />
-                <NameText>{fullName}</NameText>
-                <Badge>{carModel}</Badge>
-              </NameRow>
-              <DetailsGrid>
-                <DetailItem><PhoneIcon /> <span>{phoneNumber}</span></DetailItem>
-                <DetailItem><WcIcon /> <span>{sex}</span></DetailItem>
-                <DetailItem><CalendarTodayIcon /> <span>{dob} Years Old</span></DetailItem>
-                <DetailItem><FormatListNumberedIcon /> <span>{carRegNumber}</span></DetailItem>
-              </DetailsGrid>
-              <CarImage src={carPhoto} alt="Car" />
-              <StarRow>
-                <StarRating rating={rating || 0} />
-                <RatingBadge>{rating?.toFixed(1) || 'N/A'}</RatingBadge>
-              </StarRow>
-            </ProfileInfo>
-          </StyledPaper>
-        </StyledLink>
-      </Link>
-    </ProfileContainer>
+    <Link href={`/drivers/${_id}`} style={{ textDecoration: "none" }}>
+      <Card>
+        <Avatar
+          src={photo}
+          alt={fullName}
+          sx={{ width: 52, height: 52, bgcolor: colors.deepNavy, fontSize: "1.1rem", flexShrink: 0 }}
+        >
+          {fullName?.[0]}
+        </Avatar>
+
+        <Info>
+          <TopRow>
+            <FullName>{fullName}</FullName>
+            {isApproved && <VerifiedDot />}
+          </TopRow>
+          <MetaRow>
+            <MetaItem>
+              <DirectionsCarIcon sx={{ fontSize: 14, color: colors.mutedText }} />
+              <span>{carMake ? `${carMake} ${carModel}` : carModel}</span>
+            </MetaItem>
+            <Dot />
+            <MetaItem>
+              <span style={{ fontFamily: "monospace", fontSize: "0.78rem" }}>{carRegNumber}</span>
+            </MetaItem>
+            {availableSeats !== undefined && (
+              <>
+                <Dot />
+                <MetaItem>
+                  <EventSeatIcon sx={{ fontSize: 14, color: colors.mutedText }} />
+                  <span>{availableSeats} seats</span>
+                </MetaItem>
+              </>
+            )}
+          </MetaRow>
+        </Info>
+
+        <RightCol>
+          <RatingBadge>
+            <StarIcon sx={{ fontSize: 13, color: displayRating > 0 ? "#F6AD55" : colors.mutedText }} />
+            <RatingText rated={displayRating > 0}>
+              {displayRating > 0 ? displayRating.toFixed(1) : "New"}
+            </RatingText>
+          </RatingBadge>
+          <ViewBtn>View</ViewBtn>
+        </RightCol>
+      </Card>
+    </Link>
   );
 };
 
-// Styled Components
-const ProfileContainer = styled.div`
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  padding: 20px;
-  box-sizing: border-box;
-  background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
-
-  @media (max-width: 768px) {
-    padding: 10px;
-  }
-`;
-
-const StyledLink = styled.a`
-  text-decoration: none !important;
-  color: inherit;
-  cursor: pointer;
-  & span, & strong, & b {
-    text-decoration: none !important;
-    color: inherit;
-  }
-  &:hover, &:visited, &:active {
-    text-decoration: none !important;
-    color: inherit;
-  }
-`;
-
-const StyledPaper = styled(Paper)`
-  width: 100%;
-  max-width: 400px;
-  padding: 24px 20px;
-  box-sizing: border-box;
-  border-radius: 18px;
-  box-shadow: 0 4px 24px rgba(60, 72, 88, 0.12);
-  background: linear-gradient(135deg, #fff 60%, #f3f4f6 100%);
-  transition: box-shadow 0.2s, transform 0.2s;
-  &:hover {
-    box-shadow: 0 8px 32px rgba(60, 72, 88, 0.18);
-    transform: translateY(-2px) scale(1.02);
-  }
-
-  @media (max-width: 768px) {
-    padding: 12px 8px;
-  }
-`;
-const NameRow = styled.div`
+const Card = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 14px;
+  background: ${colors.pureWhite};
+  border: 1px solid ${colors.border};
+  border-radius: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
+
+  &:hover {
+    box-shadow: 0 4px 20px rgba(26, 54, 93, 0.1);
+    border-color: ${colors.skyBlue}66;
+    transform: translateY(-1px);
+  }
 `;
 
-const NameText = styled.span`
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: #2d3748;
-  text-decoration: none !important;
+const Info = styled.div`
+  flex: 1;
+  min-width: 0;
 `;
 
-const Badge = styled.span`
-  background: #6366f1;
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 500;
-  border-radius: 12px;
-  padding: 2px 10px;
-  margin-left: 8px;
-  text-decoration: none !important;
-`;
-
-// Removed Divider
-const DetailsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 18px 0 12px 0;
-  width: 100%;
-  justify-items: center;
-`;
-
-const DetailItem = styled.div`
+const TopRow = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 1rem;
-  color: #374151;
-  background: #f3f4f6;
-  border-radius: 8px;
-  padding: 6px 12px;
-  box-shadow: 0 1px 4px rgba(60,72,88,0.06);
-  min-width: 120px;
-  justify-content: center;
+  margin-bottom: 4px;
 `;
 
-const AvatarContainer = styled.div`
+const FullName = styled.span`
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: ${colors.deepNavy};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const VerifiedDot = styled.span`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${colors.successGreen};
+  flex-shrink: 0;
+`;
+
+const MetaRow = styled.div`
   display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 `;
 
-const ProfileInfo = styled.div`
+const MetaItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.78rem;
+  color: ${colors.mutedText};
+`;
+
+const Dot = styled.span`
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: ${colors.border};
+  flex-shrink: 0;
+`;
+
+const RightCol = styled.div`
   display: flex;
   flex-direction: column;
-  align-items: center;
-  margin-top: 20px;
-
-  @media (max-width: 768px) {
-    margin-top: 10px;
-  }
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
 `;
 
-const ProfileDetail = styled.p`
-  margin-bottom: 10px;
+const RatingBadge = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
-  text-align: center;
-
-  @media (max-width: 768px) {
-    font-size: 14px;
-  }
+  gap: 3px;
 `;
 
-const CarImage = styled.img`
-  width: 100%;
-  max-height: 150px;
-  height: auto;
-  margin-top: 10px;
-  border-radius: 12px;
-  object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-`;
-
-const StarsContainer = styled.div`
-  display: flex;
-  align-items: center;
-  color: #fbbf24;
-  margin-top: 10px;
-`;
-
-const StarRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 10px;
-`;
-
-const RatingBadge = styled.span`
-  background: #fbbf24;
-  color: #fff;
-  font-size: 0.9rem;
+const RatingText = styled.span<{ rated: boolean }>`
+  font-size: 0.78rem;
   font-weight: 600;
-  border-radius: 10px;
-  padding: 2px 10px;
+  color: ${({ rated }) => (rated ? colors.deepNavy : colors.mutedText)};
+`;
+
+const ViewBtn = styled.span`
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: ${colors.skyBlue};
+  padding: 3px 10px;
+  border: 1px solid ${colors.skyBlue}55;
+  border-radius: 50px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+
+  ${Card}:hover & {
+    background: ${colors.skyBlue};
+    color: #fff;
+    border-color: ${colors.skyBlue};
+  }
 `;
 
 export default ProfileCard;

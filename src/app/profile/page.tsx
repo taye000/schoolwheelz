@@ -19,7 +19,6 @@ import {
   MenuItem,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
-import LogoutIcon from "@mui/icons-material/Logout";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
@@ -34,6 +33,7 @@ import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import VerifiedIcon from "@mui/icons-material/Verified";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import CancelIcon from "@mui/icons-material/Cancel";
 import PhoneInput from "@/components/PhoneInput";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
@@ -79,6 +79,7 @@ interface User {
   idNumber?: string;
   averageRating?: number;
   isValidated?: boolean;
+  verificationStatus?: "pending" | "approved" | "rejected" | "suspended";
   isProfileActive?: boolean;
   cars?: Car[];
   children?: Child[];
@@ -318,15 +319,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
-    } catch {
-      /* ignore */
-    }
-  };
-
   /* ── Loading / error / unauthenticated states ── */
   if (loading)
     return (
@@ -380,9 +372,6 @@ export default function ProfilePage() {
               </Button>
             </>
           )}
-          <Button variant="outlined" startIcon={<LogoutIcon />} onClick={handleLogout} sx={{ borderRadius: "50px", borderColor: colors.border, color: colors.mutedText }}>
-            Sign Out
-          </Button>
         </HeaderActions>
       </PageHeader>
 
@@ -624,8 +613,12 @@ function DriverViewCard({ user }: { user: User }) {
           </Typography>
           <Box sx={{ display: "flex", gap: 1, mt: 0.75, flexWrap: "wrap" }}>
             <Chip label="Driver" size="small" sx={{ bgcolor: colors.skyBlue, color: "#fff", fontWeight: 600 }} />
-            {user.isValidated ? (
+            {user.verificationStatus === "approved" || user.isValidated ? (
               <Chip icon={<VerifiedIcon sx={{ fontSize: "14px !important" }} />} label="Validated" size="small" color="success" sx={{ fontWeight: 600 }} />
+            ) : user.verificationStatus === "rejected" ? (
+              <Chip label="Rejected" size="small" color="error" sx={{ fontWeight: 600 }} />
+            ) : user.verificationStatus === "suspended" ? (
+              <Chip label="Suspended" size="small" color="error" sx={{ fontWeight: 600 }} />
             ) : (
               <Chip icon={<HourglassEmptyIcon sx={{ fontSize: "14px !important" }} />} label="Pending Validation" size="small" color="warning" sx={{ fontWeight: 600 }} />
             )}
@@ -647,10 +640,22 @@ function DriverViewCard({ user }: { user: User }) {
       {user.sex && <InfoRow><Label>Sex</Label><Value>{user.sex}</Value></InfoRow>}
       {user.licenseNumber && <InfoRow><Label>License</Label><Value>{user.licenseNumber}</Value></InfoRow>}
 
-      {!user.isValidated && (
+      {(!user.verificationStatus || user.verificationStatus === "pending") && (
         <ValidationNotice>
           <HourglassEmptyIcon sx={{ fontSize: 18 }} />
           <span>Your profile is under review. You'll be visible to parents once validated by an admin.</span>
+        </ValidationNotice>
+      )}
+      {user.verificationStatus === "rejected" && (
+        <ValidationNotice style={{ background: "#fff5f5", borderColor: "#fc8181", color: "#742a2a" }}>
+          <CancelIcon sx={{ fontSize: 18 }} />
+          <span>Your application was not approved. Contact support for details.</span>
+        </ValidationNotice>
+      )}
+      {user.verificationStatus === "suspended" && (
+        <ValidationNotice style={{ background: "#fff5f5", borderColor: "#fc8181", color: "#742a2a" }}>
+          <CancelIcon sx={{ fontSize: 18 }} />
+          <span>Your account is suspended. Contact support.</span>
         </ValidationNotice>
       )}
 

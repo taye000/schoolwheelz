@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { success: false, message: "Not authenticated" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -26,21 +26,21 @@ export async function GET(req: NextRequest) {
     } catch {
       return NextResponse.json(
         { success: false, message: "Invalid token" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     const Model =
-      decoded.userType === "parent"
+      decoded.userType === "parent" || decoded.userType === "admin"
         ? Parent
         : decoded.userType === "driver"
-        ? Driver
-        : null;
+          ? Driver
+          : null;
 
     if (!Model) {
       return NextResponse.json(
         { success: false, message: "Invalid user type" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { success: false, message: "User not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { success: false, message: "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

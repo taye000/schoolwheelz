@@ -102,6 +102,15 @@ export const SmsTemplates = {
   bookingCancelled: (reason?: string) =>
     `Your School Wheelz booking has been cancelled.${reason ? ` Reason: ${reason}` : ""} Please re-book at your convenience.`,
 
+  bookingRejected: (driverName: string, reason?: string) =>
+    `Sorry, driver ${driverName} is unable to take your booking.${reason ? ` Reason: ${reason}.` : ""} Please choose another driver on School Wheelz.`,
+
   childDroppedOff: (childName: string, school: string) =>
     `${childName} has been safely dropped off at ${school}. Have a great day!`,
+
+  childPickedUp: (childName: string, driverName: string) =>
+    `${childName} has been picked up by ${driverName} and is on the way to school.`,
+
+  arrivedAtSchool: (childName: string, school: string) =>
+    `${childName} has arrived safely at ${school}. Have a great day!`,
 } as const;

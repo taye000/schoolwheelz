@@ -25,6 +25,8 @@ export interface IParent extends Document {
   password: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
   children: IChild[];
+  /** Driver _ids the parent has marked as preferred */
+  favoriteDrivers: mongoose.Types.ObjectId[];
 }
 
 const ParentSchema: Schema = new Schema({
@@ -54,6 +56,7 @@ const ParentSchema: Schema = new Schema({
     },
   ],
   password: { type: String, required: true },
+  favoriteDrivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Driver" }],
 });
 
 ParentSchema.pre<IParent>("save", async function (next) {

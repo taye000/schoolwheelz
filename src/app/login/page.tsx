@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { TextField, Button, Typography, MenuItem, Box, Paper } from "@mui/material";
+import { TextField, Button, Typography, MenuItem, Box, Paper, InputAdornment, IconButton } from "@mui/material";
 import styled from "styled-components";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import SchoolIcon from "@mui/icons-material/School";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { colors } from "@/lib/theme";
 
 export default function LoginPage() {
@@ -17,6 +19,7 @@ export default function LoginPage() {
     userType: "parent",
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -30,7 +33,7 @@ export default function LoginPage() {
       const response = await axios.post("/api/auth/login", formData);
       if (response.status === 200) {
         toast.success("Welcome back!");
-        router.push("/profile");
+        router.push(formData.userType === "admin" ? "/admin" : "/profile");
       }
     } catch (error) {
       toast.error("Invalid credentials. Please try again.");
@@ -63,6 +66,7 @@ export default function LoginPage() {
           >
             <MenuItem value="parent">Parent</MenuItem>
             <MenuItem value="driver">Driver</MenuItem>
+            <MenuItem value="admin">Admin</MenuItem>
           </TextField>
           <TextField
             label="Email address"
@@ -77,12 +81,27 @@ export default function LoginPage() {
           <TextField
             label="Password"
             name="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             value={formData.password}
             onChange={handleChange}
             fullWidth
             required
             autoComplete="current-password"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={() => setShowPassword((v) => !v)}
+                    edge="end"
+                    size="small"
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
           <Button
             type="submit"

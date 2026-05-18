@@ -98,10 +98,14 @@ export default function AdminPage() {
     fetchView(activeTab);
   }, [activeTab, fetchView]);
 
-  const handleValidate = async (driverId: string, validate: boolean) => {
+  const handleValidate = async (driverId: string, status: "approved" | "rejected" | "suspended") => {
     try {
-      await axios.patch(`/api/admin/drivers/${driverId}/validate`, { validate });
-      toast.success(validate ? "Driver validated!" : "Validation revoked.");
+      await axios.patch(`/api/admin/drivers/${driverId}/validate`, { status });
+      toast.success(
+        status === "approved" ? "Driver approved!" :
+        status === "rejected" ? "Driver rejected." :
+        "Driver suspended."
+      );
       fetchView(activeTab);
       fetchStats();
     } catch {
@@ -198,10 +202,15 @@ function DriversTable({
   showValidateOnly,
 }: {
   rows: any[];
-  onValidate: (id: string, v: boolean) => void;
+  onValidate: (id: string, status: "approved" | "rejected" | "suspended") => void;
   showValidateOnly?: boolean;
 }) {
+  const router = useRouter();
   if (!rows.length) return <Empty>No drivers found.</Empty>;
+
+  const statusColor = (s: string) =>
+    s === "approved" ? "success" : s === "rejected" ? "error" : s === "suspended" ? "error" : "warning";
+
   return (
     <StyledTable>
       <Table size="small">
@@ -233,8 +242,8 @@ function DriversTable({
                 <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
                   <Chip
                     size="small"
-                    label={d.isValidated ? "Validated" : "Pending"}
-                    color={d.isValidated ? "success" : "warning"}
+                    label={d.verificationStatus ?? (d.isValidated ? "approved" : "pending")}
+                    color={statusColor(d.verificationStatus ?? (d.isValidated ? "approved" : "pending")) as any}
                     variant="outlined"
                   />
                   {d.isProfileActive && (
@@ -243,28 +252,46 @@ function DriversTable({
                 </Box>
               </TableCell>
               <TableCell align="right">
-                {!d.isValidated ? (
-                  <Tooltip title="Validate driver">
+                <Box sx={{ display: "flex", gap: 0.5, justifyContent: "flex-end" }}>
+                  <Tooltip title="View driver detail">
                     <Button
                       size="small"
-                      variant="contained"
-                      color="success"
-                      startIcon={<CheckCircleIcon />}
-                      onClick={() => onValidate(d._id, true)}
-                      sx={{ borderRadius: "50px", fontSize: "0.7rem" }}
+                      variant="outlined"
+                      onClick={() => router.push(`/admin/drivers/${d._id}`)}
+                      sx={{ borderRadius: "50px", fontSize: "0.7rem", minWidth: 0 }}
                     >
-                      Validate
+                      View
                     </Button>
                   </Tooltip>
-                ) : (
-                  !showValidateOnly && (
-                    <Tooltip title="Revoke validation">
-                      <IconButton size="small" color="error" onClick={() => onValidate(d._id, false)}>
+                  {d.verificationStatus !== "approved" && (
+                    <Tooltip title="Approve driver">
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckCircleIcon />}
+                        onClick={() => onValidate(d._id, "approved")}
+                        sx={{ borderRadius: "50px", fontSize: "0.7rem" }}
+                      >
+                        Approve
+                      </Button>
+                    </Tooltip>
+                  )}
+                  {!showValidateOnly && d.verificationStatus !== "rejected" && (
+                    <Tooltip title="Reject driver">
+                      <IconButton size="small" color="error" onClick={() => onValidate(d._id, "rejected")}>
                         <CancelIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                  )
-                )}
+                  )}
+                  {!showValidateOnly && d.verificationStatus === "approved" && (
+                    <Tooltip title="Suspend driver">
+                      <IconButton size="small" sx={{ color: "#DD6B20" }} onClick={() => onValidate(d._id, "suspended")}>
+                        <CancelIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
               </TableCell>
             </TableRow>
           ))}
@@ -277,6 +304,7 @@ function DriversTable({
 /* ─── Parents table ─── */
 
 function ParentsTable({ rows }: { rows: any[] }) {
+  const router = useRouter();
   if (!rows.length) return <Empty>No parents found.</Empty>;
   return (
     <StyledTable>
@@ -288,6 +316,7 @@ function ParentsTable({ rows }: { rows: any[] }) {
             <TableCell>Phone</TableCell>
             <TableCell>Children</TableCell>
             <TableCell>Address</TableCell>
+            <TableCell align="right">Detail</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -306,6 +335,16 @@ function ParentsTable({ rows }: { rows: any[] }) {
               <TableCell>{p.children?.length ?? 0}</TableCell>
               <TableCell sx={{ color: colors.mutedText, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {p.address}
+              </TableCell>
+              <TableCell align="right">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => router.push(`/admin/parents/${p._id}`)}
+                  sx={{ borderRadius: "50px", fontSize: "0.7rem" }}
+                >
+                  View
+                </Button>
               </TableCell>
             </TableRow>
           ))}
@@ -357,6 +396,7 @@ const STATUS_COLORS: Record<string, "default" | "warning" | "success" | "error">
 };
 
 function BookingsTable({ rows }: { rows: any[] }) {
+  const router = useRouter();
   if (!rows.length) return <Empty>No bookings found.</Empty>;
   return (
     <StyledTable>
@@ -369,6 +409,7 @@ function BookingsTable({ rows }: { rows: any[] }) {
             <TableCell>Seats</TableCell>
             <TableCell>Trip Date</TableCell>
             <TableCell>Status</TableCell>
+            <TableCell align="right">Detail</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -382,6 +423,16 @@ function BookingsTable({ rows }: { rows: any[] }) {
               <TableCell>
                 <Chip size="small" label={b.status} color={STATUS_COLORS[b.status] ?? "default"} variant="outlined" />
               </TableCell>
+              <TableCell align="right">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => router.push(`/admin/bookings/${b._id}`)}
+                  sx={{ borderRadius: "50px", fontSize: "0.7rem" }}
+                >
+                  View
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -393,6 +444,7 @@ function BookingsTable({ rows }: { rows: any[] }) {
 /* ─── Cars table ─── */
 
 function CarsTable({ rows }: { rows: any[] }) {
+  const router = useRouter();
   if (!rows.length) return <Empty>No cars found.</Empty>;
   return (
     <StyledTable>
@@ -405,6 +457,7 @@ function CarsTable({ rows }: { rows: any[] }) {
             <TableCell>Seats</TableCell>
             <TableCell>Driver</TableCell>
             <TableCell>Active</TableCell>
+            <TableCell align="right">Detail</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -420,6 +473,18 @@ function CarsTable({ rows }: { rows: any[] }) {
                   <Chip size="small" label="Active" color="success" />
                 ) : (
                   <Chip size="small" label="Inactive" variant="outlined" />
+                )}
+              </TableCell>
+              <TableCell align="right">
+                {c.driverId && c._id && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => router.push(`/admin/cars/${c.driverId}/${c._id}`)}
+                    sx={{ borderRadius: "50px", fontSize: "0.7rem" }}
+                  >
+                    View
+                  </Button>
                 )}
               </TableCell>
             </TableRow>

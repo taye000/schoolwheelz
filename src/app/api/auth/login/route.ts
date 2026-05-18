@@ -14,20 +14,28 @@ export async function POST(req: NextRequest) {
     const { password, userType } = body;
     const email = body.email.toLowerCase();
 
-    if (!["parent", "driver"].includes(userType)) {
+    if (!["parent", "driver", "admin"].includes(userType)) {
       return NextResponse.json(
         { success: false, message: "Invalid user type" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const Model = userType === "parent" ? Parent : Driver;
-    const user = await Model.findOne({ email });
+    // Admins may be stored in either collection — search both
+    let user: any = null;
+    if (userType === "admin") {
+      user =
+        (await Parent.findOne({ email, userType: "admin" })) ??
+        (await Driver.findOne({ email, userType: "admin" }));
+    } else {
+      const Model = userType === "parent" ? Parent : Driver;
+      user = await Model.findOne({ email });
+    }
 
     if (!user) {
       return NextResponse.json(
         { success: false, message: "User not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -35,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (!isMatch) {
       return NextResponse.json(
         { success: false, message: "Invalid credentials" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -48,7 +56,7 @@ export async function POST(req: NextRequest) {
         phoneNumber: user.phoneNumber,
       },
       process.env.JWT_SECRET as string,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     const { password: _, ...safeUser } = user.toObject();
@@ -62,14 +70,14 @@ export async function POST(req: NextRequest) {
         sameSite: "lax",
         maxAge: 60 * 60 * 24 * 7,
         path: "/",
-      })
+      }),
     );
     return res;
   } catch (error) {
     console.error(error);
     return NextResponse.json(
       { success: false, message: "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

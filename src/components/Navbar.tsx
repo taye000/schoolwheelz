@@ -12,24 +12,33 @@ import {
     ListItem,
     ListItemText,
     Avatar,
+    Popover,
+    MenuItem,
+    Divider,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LogoutIcon from "@mui/icons-material/Logout";
 import styled from "styled-components";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { colors } from "@/lib/theme";
 
 interface User {
     _id: string;
     fullName: string;
     email: string;
-    userType: "parent" | "driver";
+    userType: "parent" | "driver" | "admin";
 }
 
 const Navbar: React.FC = () => {
+    const router = useRouter();
+    const pathname = usePathname();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [user, setUser] = useState<User | null>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
     const toggleDrawer = (open: boolean) => () => {
         setDrawerOpen(open);
@@ -42,15 +51,29 @@ const Navbar: React.FC = () => {
                     credentials: "include",
                 });
                 const data = await res.json();
-                if (data.success) {
-                    setUser(data.user);
-                }
-            } catch (err) {
-                setUser(null); // not logged in
+                setUser(data.success ? data.user : null);
+            } catch {
+                setUser(null);
             }
         };
         fetchUser();
-    }, []);
+    }, [pathname]);
+
+    const handleAvatarClick = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(e.currentTarget);
+    };
+    const handlePopoverClose = () => setAnchorEl(null);
+
+    const handleSignOut = async () => {
+        handlePopoverClose();
+        try {
+            await fetch("/api/auth/logout", { method: "POST" });
+        } catch { /* ignore */ }
+        router.push("/login");
+    };
+
+    const profileHref = user?.userType === "admin" ? "/admin" : "/profile";
+    const popoverOpen = Boolean(anchorEl);
 
     return (
         <>
@@ -65,7 +88,13 @@ const Navbar: React.FC = () => {
 
                     <NavLinks>
                         <NavLink href="/drivers">Drivers</NavLink>
-                        {user && <NavLink href="/bookings">Bookings</NavLink>}
+                        {user && user.userType !== "admin" && <NavLink href="/bookings">Bookings</NavLink>}
+                        {user?.userType === "driver" && (
+                            <NavLink href="/trips">My Trips</NavLink>
+                        )}
+                        {user?.userType === "admin" && (
+                            <NavLink href="/admin">Admin Dashboard</NavLink>
+                        )}
                         {!user && <NavLink href="/register">Register</NavLink>}
                         {!user && <NavLink href="/driver-registration">Drive with us</NavLink>}
                         {!user ? (
@@ -73,8 +102,8 @@ const Navbar: React.FC = () => {
                                 Sign In
                             </SignInButton>
                         ) : (
-                            <UserChip href="/profile">
-                                <Avatar sx={{ width: 28, height: 28, bgcolor: colors.skyBlue, fontSize: "0.75rem" }}>
+                            <UserChip onClick={handleAvatarClick}>
+                                <Avatar sx={{ width: 28, height: 28, bgcolor: user.userType === "admin" ? colors.warningAmber : colors.skyBlue, fontSize: "0.75rem" }}>
                                     {user.fullName?.charAt(0).toUpperCase()}
                                 </Avatar>
                                 <span>{user.fullName?.split(" ")[0]}</span>
@@ -93,6 +122,45 @@ const Navbar: React.FC = () => {
                 </ToolbarContainer>
             </StyledAppBar>
 
+            {/* Avatar popover */}
+            <Popover
+                open={popoverOpen}
+                anchorEl={anchorEl}
+                onClose={handlePopoverClose}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+                PaperProps={{ sx: { mt: 1, minWidth: 180, borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden" } }}
+            >
+                {user && (
+                    <>
+                        <PopoverUser>
+                            <Avatar sx={{ width: 36, height: 36, bgcolor: user.userType === "admin" ? colors.warningAmber : colors.skyBlue, fontSize: "0.85rem" }}>
+                                {user.fullName?.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <div>
+                                <PopoverName>{user.fullName}</PopoverName>
+                                <PopoverRole>{user.userType}</PopoverRole>
+                            </div>
+                        </PopoverUser>
+                        <Divider />
+                        <MenuItem
+                            onClick={() => { handlePopoverClose(); router.push(profileHref); }}
+                            sx={{ gap: 1.5, py: 1.2, fontSize: "0.875rem", fontWeight: 500 }}
+                        >
+                            <AccountCircleIcon fontSize="small" sx={{ color: colors.skyBlue }} />
+                            {user.userType === "admin" ? "Admin Dashboard" : "My Profile"}
+                        </MenuItem>
+                        <MenuItem
+                            onClick={handleSignOut}
+                            sx={{ gap: 1.5, py: 1.2, fontSize: "0.875rem", fontWeight: 500, color: colors.errorRed }}
+                        >
+                            <LogoutIcon fontSize="small" />
+                            Sign Out
+                        </MenuItem>
+                    </>
+                )}
+            </Popover>
+
             <Drawer anchor="right" open={drawerOpen} onClose={toggleDrawer(false)}>
                 <DrawerContainer>
                     <DrawerHeader>
@@ -104,7 +172,9 @@ const Navbar: React.FC = () => {
                     <List sx={{ flex: 1 }}>
                         {[
                             { href: "/drivers", label: "Drivers" },
-                            ...(user ? [{ href: "/bookings", label: "Bookings" }, { href: "/profile", label: "My Profile" }] : []),
+                            ...(user && user.userType !== "admin" ? [{ href: "/bookings", label: "Bookings" }, { href: "/profile", label: "My Profile" }] : []),
+                            ...(user?.userType === "admin" ? [{ href: "/admin", label: "Admin Dashboard" }] : []),
+                            ...(user?.userType === "driver" ? [{ href: "/trips", label: "My Trips" }] : []),
                             ...(!user ? [{ href: "/register", label: "Register as Parent" }, { href: "/driver-registration", label: "Become a Driver" }] : []),
                         ].map((item) => (
                             <Link key={item.href} href={item.href} style={{ textDecoration: "none" }}>
@@ -196,15 +266,35 @@ const SignInButton = styled(Button)`
   }
 ` as typeof Button;
 
-const UserChip = styled(Link)`
+const PopoverUser = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+`;
+
+const PopoverName = styled.div`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: ${colors.deepNavy};
+  line-height: 1.2;
+`;
+
+const PopoverRole = styled.div`
+  font-size: 0.75rem;
+  color: ${colors.mutedText};
+  text-transform: capitalize;
+`;
+
+const UserChip = styled.button`
   display: flex; align-items: center; gap: 8px;
   background: rgba(255,255,255,0.12);
   border-radius: 50px;
   padding: 4px 14px 4px 6px;
   color: #fff; font-size: 0.875rem; font-weight: 600;
-  text-decoration: none;
-  transition: background 0.15s;
+  border: none;
   cursor: pointer;
+  transition: background 0.15s;
 
   &:hover {
     background: rgba(255,255,255,0.22);

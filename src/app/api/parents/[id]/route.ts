@@ -25,7 +25,11 @@ export async function GET(
 ) {
   await dbConnect();
   const decoded = getTokenPayload(req);
-  if (!decoded || decoded.userType !== "parent" || decoded.id !== params.id) {
+  if (
+    !decoded ||
+    (decoded.userType !== "admin" &&
+      (decoded.userType !== "parent" || decoded.id !== params.id))
+  ) {
     return NextResponse.json(
       { success: false, message: "Unauthorized" },
       { status: 401 },

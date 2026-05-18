@@ -7,10 +7,8 @@ import { getAuthUser } from "@/utils/authApp";
 
 /**
  * PATCH /api/admin/drivers/[id]/validate
- * Validates a driver (admin only). Sets isValidated = true.
- * If the driver already has an active car, also sets isProfileActive = true.
- *
- * Body: { validate: boolean } — pass false to revoke validation.
+ * Body: { status: "approved" | "rejected" | "suspended" | "pending", notes?: string }
+ * Defaults to "approved" for backward compat.
  */
 export async function PATCH(
   req: NextRequest,
@@ -36,7 +34,18 @@ export async function PATCH(
   }
 
   try {
-    const { validate = true } = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const status: string =
+      body.status ?? (body.validate === false ? "rejected" : "approved");
+    const notes: string | undefined = body.notes;
+
+    const validStatuses = ["pending", "approved", "rejected", "suspended"];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid status." },
+        { status: 400 },
+      );
+    }
 
     const driver = await Driver.findById(id);
     if (!driver) {
@@ -46,9 +55,22 @@ export async function PATCH(
       );
     }
 
-    driver.isValidated = Boolean(validate);
-    const hasActiveCar = driver.cars.some((c: any) => c.isActive);
-    driver.isProfileActive = driver.isValidated && hasActiveCar;
+    driver.verificationStatus = status as any;
+    if (notes !== undefined) driver.verificationNotes = notes;
+    // isValidated + isProfileActive are synced by pre-save hook
+    if (status === "approved") {
+      const hasActiveCar = driver.cars.some((c: any) => c.isActive);
+      driver.isProfileActive = hasActiveCar;
+    }
+
+    // Clear malformed lastLocation (type set but no coordinates) — would break 2dsphere index
+    if (
+      driver.lastLocation &&
+      (!driver.lastLocation.coordinates ||
+        driver.lastLocation.coordinates.length === 0)
+    ) {
+      driver.lastLocation = undefined as any;
+    }
 
     await driver.save();
 
