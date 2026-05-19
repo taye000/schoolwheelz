@@ -28,7 +28,7 @@ export async function GET(
   }
 
   try {
-    const bill = await Bill.findById(params.id).lean();
+    const bill = (await Bill.findById(params.id).lean()) as any;
     if (!bill)
       return NextResponse.json(
         { success: false, message: "Not found" },
