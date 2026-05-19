@@ -1,4 +1,5 @@
 /* ===== School Wheelz — Global Styles ===== */
+@import "mapbox-gl/dist/mapbox-gl.css";
 
 :root {
   /* Brand palette */

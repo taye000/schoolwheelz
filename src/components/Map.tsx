@@ -8,7 +8,6 @@ import MapboxMap, {
   MapMouseEvent,
   MapRef,
 } from "react-map-gl/mapbox";
-import "mapbox-gl/dist/mapbox-gl.css";
 import styled from "styled-components";
 import { colors } from "@/lib/theme";
 import LocationPermissionPrompt from "./LocationPermissionPrompt";

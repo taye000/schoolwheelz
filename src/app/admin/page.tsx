@@ -228,26 +228,56 @@ function DriversTable({
   showValidateOnly?: boolean;
 }) {
   const router = useRouter();
-  if (!rows.length) return <Empty>No drivers found.</Empty>;
+  const [dSearch, setDSearch] = useState("");
+  const [dStatusFilter, setDStatusFilter] = useState("");
 
   const statusColor = (s: string) =>
     s === "approved" ? "success" : s === "rejected" ? "error" : s === "suspended" ? "error" : "warning";
 
+  const filtered = rows.filter((d) => {
+    const q = dSearch.trim().toLowerCase();
+    const matchSearch = !q || d.fullName?.toLowerCase().includes(q) || d.email?.toLowerCase().includes(q) || d.phoneNumber?.includes(q);
+    const dStatus = d.verificationStatus ?? (d.isValidated ? "approved" : "pending");
+    const matchStatus = !dStatusFilter || dStatus === dStatusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  if (!rows.length) return <Empty>No drivers found.</Empty>;
+
   return (
-    <StyledTable>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Name</TableCell>
-            <TableCell>Email</TableCell>
-            <TableCell>Phone</TableCell>
-            <TableCell>Cars</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell align="right">Actions</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((d) => (
+    <Box>
+      <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <TextField size="small" placeholder="Search name, email or phone…" value={dSearch}
+          onChange={(e) => setDSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Status</InputLabel>
+          <Select value={dStatusFilter} label="Status" onChange={(e) => setDStatusFilter(e.target.value)}>
+            <MenuItem value="">All</MenuItem>
+            {["approved","pending","rejected","suspended"].map((s) => (
+              <MenuItem key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {(dSearch || dStatusFilter) && <Button size="small" onClick={() => { setDSearch(""); setDStatusFilter(""); }}>Clear</Button>}
+        <Typography variant="caption" sx={{ color: colors.mutedText, whiteSpace: "nowrap", alignSelf: "center" }}>
+          {filtered.length} / {rows.length}
+        </Typography>
+      </Box>
+      {filtered.length === 0 ? <Empty>No matching drivers.</Empty> : (
+      <StyledTable>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Phone</TableCell>
+              <TableCell>Cars</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filtered.map((d) => (
             <TableRow key={d._id} hover>
               <TableCell>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -320,6 +350,8 @@ function DriversTable({
         </TableBody>
       </Table>
     </StyledTable>
+    )}
+    </Box>
   );
 }
 
@@ -327,22 +359,40 @@ function DriversTable({
 
 function ParentsTable({ rows }: { rows: any[] }) {
   const router = useRouter();
+  const [pSearch, setPSearch] = useState("");
+
+  const filtered = rows.filter((p) => {
+    const q = pSearch.trim().toLowerCase();
+    return !q || p.fullName?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q) || p.phoneNumber?.includes(q) || p.address?.toLowerCase().includes(q);
+  });
+
   if (!rows.length) return <Empty>No parents found.</Empty>;
+
   return (
-    <StyledTable>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Name</TableCell>
-            <TableCell>Email</TableCell>
-            <TableCell>Phone</TableCell>
-            <TableCell>Children</TableCell>
-            <TableCell>Address</TableCell>
-            <TableCell align="right">Detail</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((p) => (
+    <Box>
+      <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <TextField size="small" placeholder="Search name, email, phone or address…" value={pSearch}
+          onChange={(e) => setPSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+        {pSearch && <Button size="small" onClick={() => setPSearch("")}>Clear</Button>}
+        <Typography variant="caption" sx={{ color: colors.mutedText, whiteSpace: "nowrap", alignSelf: "center" }}>
+          {filtered.length} / {rows.length}
+        </Typography>
+      </Box>
+      {filtered.length === 0 ? <Empty>No matching parents.</Empty> : (
+      <StyledTable>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Phone</TableCell>
+              <TableCell>Children</TableCell>
+              <TableCell>Address</TableCell>
+              <TableCell align="right">Detail</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filtered.map((p) => (
             <TableRow key={p._id} hover>
               <TableCell>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -373,27 +423,47 @@ function ParentsTable({ rows }: { rows: any[] }) {
         </TableBody>
       </Table>
     </StyledTable>
+    )}
+    </Box>
   );
 }
 
 /* ─── Children table ─── */
 
 function ChildrenTable({ rows }: { rows: any[] }) {
+  const [cSearch, setCSearch] = useState("");
+
+  const filtered = rows.filter((c) => {
+    const q = cSearch.trim().toLowerCase();
+    return !q || c.name?.toLowerCase().includes(q) || c.school?.toLowerCase().includes(q) || c.parentName?.toLowerCase().includes(q);
+  });
+
   if (!rows.length) return <Empty>No children found.</Empty>;
+
   return (
-    <StyledTable>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Name</TableCell>
-            <TableCell>Age</TableCell>
-            <TableCell>Gender</TableCell>
-            <TableCell>School</TableCell>
-            <TableCell>Parent</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((c, i) => (
+    <Box>
+      <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <TextField size="small" placeholder="Search name, school or parent…" value={cSearch}
+          onChange={(e) => setCSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+        {cSearch && <Button size="small" onClick={() => setCSearch("")}>Clear</Button>}
+        <Typography variant="caption" sx={{ color: colors.mutedText, whiteSpace: "nowrap", alignSelf: "center" }}>
+          {filtered.length} / {rows.length}
+        </Typography>
+      </Box>
+      {filtered.length === 0 ? <Empty>No matching children.</Empty> : (
+      <StyledTable>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Age</TableCell>
+              <TableCell>Gender</TableCell>
+              <TableCell>School</TableCell>
+              <TableCell>Parent</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filtered.map((c, i) => (
             <TableRow key={i} hover>
               <TableCell>{c.name}</TableCell>
               <TableCell>{c.age}</TableCell>
@@ -405,6 +475,8 @@ function ChildrenTable({ rows }: { rows: any[] }) {
         </TableBody>
       </Table>
     </StyledTable>
+    )}
+    </Box>
   );
 }
 
@@ -467,23 +539,52 @@ function BookingsTable({ rows }: { rows: any[] }) {
 
 function CarsTable({ rows }: { rows: any[] }) {
   const router = useRouter();
+  const [carSearch, setCarSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState("");
+
+  const filtered = rows.filter((c) => {
+    const q = carSearch.trim().toLowerCase();
+    const matchSearch = !q || c.make?.toLowerCase().includes(q) || c.model?.toLowerCase().includes(q) || c.regNumber?.toLowerCase().includes(q) || c.driverName?.toLowerCase().includes(q);
+    const matchActive = !activeFilter || (activeFilter === "active" ? c.isActive : !c.isActive);
+    return matchSearch && matchActive;
+  });
+
   if (!rows.length) return <Empty>No cars found.</Empty>;
+
   return (
-    <StyledTable>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Make</TableCell>
-            <TableCell>Model</TableCell>
-            <TableCell>Reg Number</TableCell>
-            <TableCell>Seats</TableCell>
-            <TableCell>Driver</TableCell>
-            <TableCell>Active</TableCell>
-            <TableCell align="right">Detail</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((c, i) => (
+    <Box>
+      <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <TextField size="small" placeholder="Search reg, make, model or driver…" value={carSearch}
+          onChange={(e) => setCarSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+        <FormControl size="small" sx={{ minWidth: 130 }}>
+          <InputLabel>Status</InputLabel>
+          <Select value={activeFilter} label="Status" onChange={(e) => setActiveFilter(e.target.value)}>
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="inactive">Inactive</MenuItem>
+          </Select>
+        </FormControl>
+        {(carSearch || activeFilter) && <Button size="small" onClick={() => { setCarSearch(""); setActiveFilter(""); }}>Clear</Button>}
+        <Typography variant="caption" sx={{ color: colors.mutedText, whiteSpace: "nowrap", alignSelf: "center" }}>
+          {filtered.length} / {rows.length}
+        </Typography>
+      </Box>
+      {filtered.length === 0 ? <Empty>No matching cars.</Empty> : (
+      <StyledTable>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Make</TableCell>
+              <TableCell>Model</TableCell>
+              <TableCell>Reg Number</TableCell>
+              <TableCell>Seats</TableCell>
+              <TableCell>Driver</TableCell>
+              <TableCell>Active</TableCell>
+              <TableCell align="right">Detail</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filtered.map((c, i) => (
             <TableRow key={i} hover>
               <TableCell>{c.make}</TableCell>
               <TableCell>{c.model}</TableCell>
@@ -514,6 +615,8 @@ function CarsTable({ rows }: { rows: any[] }) {
         </TableBody>
       </Table>
     </StyledTable>
+    )}
+    </Box>
   );
 }
 
@@ -534,6 +637,7 @@ function SchoolsTab() {
   const [approveEstate, setApproveEstate] = useState("");
   const [approveNote, setApproveNote] = useState("");
   const [approveSaving, setApproveSaving] = useState(false);
+  const [schoolSearch, setSchoolSearch] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -549,7 +653,12 @@ function SchoolsTab() {
 
   useEffect(() => { load(); }, []);
 
-  const filtered = filter === "all" ? schools : schools.filter((s) => s.status === filter);
+  const filtered = schools.filter((s) => {
+    const matchStatus = filter === "all" || s.status === filter;
+    const q = schoolSearch.trim().toLowerCase();
+    const matchSearch = !q || s.name?.toLowerCase().includes(q) || s.estate?.toLowerCase().includes(q) || s.requestedBy?.fullName?.toLowerCase().includes(q);
+    return matchStatus && matchSearch;
+  });
   const pending = schools.filter((s) => s.status === "pending").length;
 
   const handleAdd = async () => {
@@ -600,6 +709,14 @@ function SchoolsTab() {
 
   return (
     <Box>
+      <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <TextField size="small" placeholder="Search school name or estate…" value={schoolSearch}
+          onChange={(e) => setSchoolSearch(e.target.value)} sx={{ flex: 1, minWidth: 220 }} />
+        {schoolSearch && <Button size="small" onClick={() => setSchoolSearch("")}>Clear</Button>}
+        <Typography variant="caption" sx={{ color: colors.mutedText, whiteSpace: "nowrap", alignSelf: "center" }}>
+          {filtered.length} / {schools.length}
+        </Typography>
+      </Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3, flexWrap: "wrap", gap: 2 }}>
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           {(["all", "approved", "pending", "rejected"] as const).map((s) => (
@@ -1032,6 +1149,99 @@ const ACTION_COLORS: Record<string, "default" | "primary" | "warning" | "error" 
   logout: "default",
 };
 
+function LogDetailDialog({ log, onClose }: { log: any | null; onClose: () => void }) {
+  if (!log) return null;
+  return (
+    <Dialog open={!!log} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 700, color: colors.deepNavy, pb: 1 }}>
+        Audit Log Detail
+      </DialogTitle>
+      <DialogContent dividers>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, fontSize: "0.875rem" }}>
+          <LogDetailRow label="Log ID" value={log._id} mono />
+          <LogDetailRow label="Time" value={new Date(log.createdAt).toLocaleString("en-KE")} />
+          <LogDetailRow label="Actor" value={`${log.actorName} (${log.actorType})`} />
+          <LogDetailRow label="Actor ID" value={log.actorId} mono />
+          <LogDetailRow label="Action" value={log.action} />
+          <LogDetailRow label="Resource Type" value={log.resource} />
+          <LogDetailRow label="Resource ID" value={log.resourceId} mono copyable />
+          <LogDetailRow label="Detail" value={log.detail} />
+          {log.changes && Object.keys(log.changes).length > 0 && (
+            <Box>
+              <Typography sx={{ fontWeight: 600, color: colors.slateCharcoal, mb: 0.5, fontSize: "0.8rem" }}>
+                Changes
+              </Typography>
+              <Box component="pre" sx={{
+                background: colors.lightBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: "6px",
+                p: 1.5,
+                fontSize: "0.75rem",
+                overflowX: "auto",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+                m: 0,
+                color: colors.slateCharcoal,
+              }}>
+                {JSON.stringify(log.changes, null, 2)}
+              </Box>
+            </Box>
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} size="small">Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function LogDetailRow({ label, value, mono, copyable }: { label: string; value?: string; mono?: boolean; copyable?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    if (!value) return;
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <Box>
+      <Typography sx={{ fontWeight: 600, color: colors.slateCharcoal, fontSize: "0.78rem", mb: 0.25 }}>{label}</Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Typography
+          sx={{
+            fontFamily: mono ? "monospace" : "inherit",
+            fontSize: "0.82rem",
+            color: colors.slateCharcoal,
+            wordBreak: "break-all",
+            flex: 1,
+            background: mono ? colors.lightBg : "transparent",
+            border: mono ? `1px solid ${colors.border}` : "none",
+            borderRadius: "4px",
+            px: mono ? 1 : 0,
+            py: mono ? 0.5 : 0,
+          }}
+        >
+          {value ?? <span style={{ color: colors.mutedText }}>—</span>}
+        </Typography>
+        {copyable && value && (
+          <Tooltip title={copied ? "Copied!" : "Copy ID"}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleCopy}
+              sx={{ minWidth: 64, fontSize: "0.72rem", py: 0.25 }}
+            >
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          </Tooltip>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
 function LogsTab() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1039,6 +1249,8 @@ function LogsTab() {
   const [actionFilter, setActionFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedLog, setSelectedLog] = useState<any | null>(null);
+  const [logSearch, setLogSearch] = useState("");
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -1060,10 +1272,23 @@ function LogsTab() {
   const RESOURCES = ["Booking","Driver","School","Bill","Parent"];
   const ACTIONS = ["create","update","delete","status_change","payment_update","login","logout"];
 
+  const lq = logSearch.trim().toLowerCase();
+  const displayed = lq ? logs.filter((l) =>
+    l.actorName?.toLowerCase().includes(lq) || l.resourceId?.toLowerCase().includes(lq)
+  ) : logs;
+
   return (
     <Box>
+      <LogDetailDialog log={selectedLog} onClose={() => setSelectedLog(null)} />
       <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
         <Typography variant="h6" sx={{ fontWeight: 700, color: colors.deepNavy, flex: 1 }}>Audit Logs</Typography>
+        <TextField
+          size="small"
+          placeholder="Search actor name or resource ID…"
+          value={logSearch}
+          onChange={(e) => setLogSearch(e.target.value)}
+          sx={{ minWidth: 240 }}
+        />
         <FormControl size="small" sx={{ minWidth: 140 }}>
           <InputLabel>Resource</InputLabel>
           <Select value={resourceFilter} label="Resource" onChange={(e) => { setResourceFilter(e.target.value); setPage(1); }}>
@@ -1078,12 +1303,16 @@ function LogsTab() {
             {ACTIONS.map((a) => <MenuItem key={a} value={a}>{a}</MenuItem>)}
           </Select>
         </FormControl>
+        {logSearch && <Button size="small" onClick={() => setLogSearch("")}>Clear</Button>}
+        {!loading && <Typography variant="caption" sx={{ color: colors.mutedText, whiteSpace: "nowrap", alignSelf: "center" }}>{displayed.length} / {logs.length}</Typography>}
       </Box>
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
       ) : logs.length === 0 ? (
         <Empty>No audit logs yet.</Empty>
+      ) : displayed.length === 0 ? (
+        <Empty>No logs match your search.</Empty>
       ) : (
         <StyledTable>
           <Table size="small">
@@ -1093,8 +1322,13 @@ function LogsTab() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {logs.map((l) => (
-                <TableRow key={l._id}>
+              {displayed.map((l) => (
+                <TableRow
+                  key={l._id}
+                  hover
+                  sx={{ cursor: "pointer" }}
+                  onClick={() => setSelectedLog(l)}
+                >
                   <TableCell sx={{ fontSize: "0.72rem", whiteSpace: "nowrap" }}>
                     {new Date(l.createdAt).toLocaleString("en-KE", { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" })}
                   </TableCell>
@@ -1105,7 +1339,14 @@ function LogsTab() {
                   <TableCell>
                     <Chip label={l.action} color={ACTION_COLORS[l.action] ?? "default"} size="small" />
                   </TableCell>
-                  <TableCell>{l.resource} <span style={{ color: colors.mutedText, fontSize: "0.72rem" }}>{l.resourceId?.slice(-6)}</span></TableCell>
+                  <TableCell>
+                    {l.resource}{" "}
+                    <Tooltip title={l.resourceId ?? ""}>
+                      <span style={{ color: colors.mutedText, fontSize: "0.72rem", fontFamily: "monospace" }}>
+                        …{l.resourceId?.slice(-8)}
+                      </span>
+                    </Tooltip>
+                  </TableCell>
                   <TableCell sx={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.8rem" }}>
                     {l.detail}
                   </TableCell>
