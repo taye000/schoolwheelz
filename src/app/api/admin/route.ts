@@ -104,8 +104,8 @@ export async function GET(req: NextRequest) {
 
       case "bookings": {
         const bookings = await Booking.find({ isDeleted: false })
-          .populate("driver", "fullName phoneNumber -password")
-          .populate("parent", "fullName phoneNumber -password")
+          .populate("driver", "fullName phoneNumber")
+          .populate("parent", "fullName phoneNumber")
           .lean();
         return NextResponse.json({ success: true, data: bookings });
       }
