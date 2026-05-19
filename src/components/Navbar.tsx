@@ -25,6 +25,7 @@ import styled from "styled-components";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { colors } from "@/lib/theme";
+import NotificationBell from "@/components/NotificationBell";
 
 interface User {
     _id: string;
@@ -102,12 +103,15 @@ const Navbar: React.FC = () => {
                                 Sign In
                             </SignInButton>
                         ) : (
-                            <UserChip onClick={handleAvatarClick}>
-                                <Avatar sx={{ width: 28, height: 28, bgcolor: user.userType === "admin" ? colors.warningAmber : colors.skyBlue, fontSize: "0.75rem" }}>
-                                    {user.fullName?.charAt(0).toUpperCase()}
-                                </Avatar>
-                                <span>{user.fullName?.split(" ")[0]}</span>
-                            </UserChip>
+                            <>
+                                <NotificationBell />
+                                <UserChip onClick={handleAvatarClick}>
+                                    <Avatar sx={{ width: 28, height: 28, bgcolor: user.userType === "admin" ? colors.warningAmber : colors.skyBlue, fontSize: "0.75rem" }}>
+                                        {user.fullName?.charAt(0).toUpperCase()}
+                                    </Avatar>
+                                    <span>{user.fullName?.split(" ")[0]}</span>
+                                </UserChip>
+                            </>
                         )}
                     </NavLinks>
 

@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/utils/dbConnect";
 import School from "@/models/School";
 import { getAuthUser } from "@/utils/authApp";
+import { log } from "@/utils/audit";
+import { createNotification } from "@/utils/notify";
 
 /**
  * PATCH /api/schools/[id]/approve
@@ -41,6 +43,29 @@ export async function PATCH(
       { success: false, message: "School not found" },
       { status: 404 },
     );
+  }
+
+  log({
+    actorId: user.id,
+    actorType: "admin",
+    actorName: user.fullName,
+    action: "status_change",
+    resource: "School",
+    resourceId: params.id,
+    detail: `School "${school.name}" approved`,
+  });
+
+  if (school.requestedBy) {
+    createNotification({
+      userId: school.requestedBy.toString(),
+      userType: "driver",
+      type: "school_approved",
+      title: "School Request Approved",
+      body: `Your school request for "${school.name}" has been approved and is now visible to parents.`,
+      href: "/profile",
+      resourceId: params.id,
+      resourceType: "school",
+    });
   }
 
   return NextResponse.json({ success: true, data: school });

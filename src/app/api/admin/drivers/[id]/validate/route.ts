@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 import dbConnect from "@/utils/dbConnect";
 import Driver from "@/models/DriversRegistration";
 import { getAuthUser } from "@/utils/authApp";
+import { log } from "@/utils/audit";
+import { createNotification } from "@/utils/notify";
 
 /**
  * PATCH /api/admin/drivers/[id]/validate
@@ -73,6 +75,34 @@ export async function PATCH(
     }
 
     await driver.save();
+
+    log({
+      actorId: user.id,
+      actorType: "admin",
+      actorName: user.fullName,
+      action: "status_change",
+      resource: "Driver",
+      resourceId: id,
+      detail: `Driver verification status set to ${status}`,
+      meta: { status, notes },
+    });
+
+    createNotification({
+      userId: id,
+      userType: "driver",
+      type: "driver_validated",
+      title:
+        status === "approved"
+          ? "Account Approved!"
+          : `Account ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      body:
+        status === "approved"
+          ? "Congratulations! Your driver account has been approved. You can now accept bookings."
+          : `Your driver account status has been updated to ${status}${notes ? ": " + notes : "."} `,
+      href: "/profile",
+      resourceId: id,
+      resourceType: "driver",
+    });
 
     const { password: _, ...safeDriver } = driver.toObject();
     return NextResponse.json({ success: true, data: safeDriver });

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import styled from "styled-components";
 import ProfileCard, { DriverProfile } from "@/components/Profilecard";
-import { Typography, CircularProgress, MenuItem, Select, FormControl, InputLabel } from "@mui/material";
+import { Typography, CircularProgress, MenuItem, Select, FormControl, InputLabel, InputAdornment, TextField, IconButton as MuiIconButton } from "@mui/material";
 import { colors } from "@/lib/theme";
 import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 import SchoolIcon from "@mui/icons-material/School";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
@@ -20,7 +21,20 @@ export default function DriversPage() {
   const [fetchKey, setFetchKey] = useState(0);
   const [schools, setSchools] = useState<{ _id: string; name: string; estate: string }[]>([]);
   const [selectedSchool, setSelectedSchool] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pageSize = 12;
+
+  // Debounce the search input 350 ms
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchText.trim());
+      setPage(1);
+    }, 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchText]);
 
   useEffect(() => {
     axios.get("/api/schools").then((r) => { if (r.data.success) setSchools(r.data.data); }).catch(() => {});
@@ -31,10 +45,13 @@ export default function DriversPage() {
       setLoading(true);
       setError(false);
       try {
-        const url = selectedSchool
-          ? `/api/drivers?page=${page}&limit=${pageSize}&school=${selectedSchool}`
-          : `/api/drivers?page=${page}&limit=${pageSize}`;
-        const response = await axios.get(url);
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(pageSize),
+        });
+        if (selectedSchool) params.set("school", selectedSchool);
+        if (debouncedSearch) params.set("q", debouncedSearch);
+        const response = await axios.get(`/api/drivers?${params.toString()}`);
         if (response.data.success) {
           setDrivers(response.data.data);
           setTotalPages(response.data.pagination.pages ?? 1);
@@ -46,7 +63,7 @@ export default function DriversPage() {
       }
     };
     fetchDrivers();
-  }, [page, fetchKey, selectedSchool]);
+  }, [page, fetchKey, selectedSchool, debouncedSearch]);
 
   return (
     <PageWrapper>
@@ -61,37 +78,59 @@ export default function DriversPage() {
         </div>
         <SearchBadge>
           <SearchIcon sx={{ fontSize: 18, mr: 1, color: colors.mutedText }} />
-          <span>{loading ? "Looking…" : drivers.length > 0 ? `${drivers.length} driver${drivers.length !== 1 ? "s" : ""} found` : "No drivers yet"}</span>
+          <span>{loading ? "Looking…" : drivers.length > 0 ? `${drivers.length} driver${drivers.length !== 1 ? "s" : ""}` : "No drivers found"}</span>
         </SearchBadge>
       </PageHeader>
 
-      {schools.length > 0 && (
-        <FilterBar>
-          <FormControl size="small" sx={{ minWidth: 240 }}>
-            <InputLabel id="school-filter-label">
-              <SchoolIcon sx={{ fontSize: 14, mr: 0.5, verticalAlign: "middle" }} />
-              Filter by School
-            </InputLabel>
-            <Select
-              labelId="school-filter-label"
-              value={selectedSchool}
-              label="Filter by School"
-              onChange={(e) => { setSelectedSchool(e.target.value); setPage(1); }}
-              sx={{ borderRadius: "50px" }}
-            >
-              <MenuItem value="">All Schools</MenuItem>
-              {schools.map((s) => (
-                <MenuItem key={s._id} value={s._id}>{s.name} — {s.estate}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {selectedSchool && (
-            <ClearFilter onClick={() => { setSelectedSchool(""); setPage(1); }}>
-              Clear filter ×
+      <FilterBar>
+          <TextField
+            placeholder="Search by driver name or estate…"
+            size="small"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 18, color: colors.mutedText }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchText ? (
+                <InputAdornment position="end">
+                  <MuiIconButton size="small" onClick={() => setSearchText("")}>
+                    <ClearIcon sx={{ fontSize: 16 }} />
+                  </MuiIconButton>
+                </InputAdornment>
+              ) : null,
+              sx: { borderRadius: "50px", fontSize: "0.875rem" },
+            }}
+            sx={{ minWidth: 280 }}
+          />
+          {schools.length > 0 && (
+            <FormControl size="small" sx={{ minWidth: 220 }}>
+              <InputLabel id="school-filter-label">
+                <SchoolIcon sx={{ fontSize: 14, mr: 0.5, verticalAlign: "middle" }} />
+                Filter by School
+              </InputLabel>
+              <Select
+                labelId="school-filter-label"
+                value={selectedSchool}
+                label="Filter by School"
+                onChange={(e) => { setSelectedSchool(e.target.value); setPage(1); }}
+                sx={{ borderRadius: "50px" }}
+              >
+                <MenuItem value="">All Schools</MenuItem>
+                {schools.map((s) => (
+                  <MenuItem key={s._id} value={s._id}>{s.name} — {s.estate}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+          {(selectedSchool || debouncedSearch) && (
+            <ClearFilter onClick={() => { setSelectedSchool(""); setSearchText(""); setPage(1); }}>
+              Clear all ×
             </ClearFilter>
           )}
         </FilterBar>
-      )}
 
       {loading ? (
         <LoadingWrap>
@@ -121,7 +160,7 @@ export default function DriversPage() {
       ) : (
         <DriversGrid>
           {drivers.map((driver) => (
-            <ProfileCard key={driver._id} {...driver} rating={4.5} />
+            <ProfileCard key={driver._id} {...driver} />
           ))}
         </DriversGrid>
       )}

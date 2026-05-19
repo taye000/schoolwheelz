@@ -35,12 +35,15 @@ import { colors } from "@/lib/theme";
 import TripJourneyPanel from "@/components/TripJourneyPanel";
 import TripTrackingMap from "@/components/TripTrackingMap";
 import RateDriverPanel from "@/components/RateDriverPanel";
+import BookingRouteMap from "@/components/BookingRouteMap";
 
 interface IChild {
   name: string;
   age: number;
   school: string;
   gender: string;
+  pickupLocation?: { lat: number; lng: number };
+  dropoffLocation?: { lat: number; lng: number };
 }
 
 interface IRecurringMeta {
@@ -254,7 +257,7 @@ export default function BookingDetailPage() {
             <ActionBannerTitle>New Booking Request</ActionBannerTitle>
             <ActionBannerSub>
               {booking.parent?.fullName} is requesting a trip for {booking.seatsBooked} child{booking.seatsBooked !== 1 ? "ren" : ""}.
-              Review the details below and respond.
+              Review the route details and children below, then respond.
             </ActionBannerSub>
           </ActionBannerText>
           <ActionBannerBtns>
@@ -446,9 +449,31 @@ export default function BookingDetailPage() {
             <ChildItem key={i}>
               <ChildName>{c.name}</ChildName>
               <ChildMeta>{c.age} yrs · {c.gender} · {c.school}</ChildMeta>
+              {(c.pickupLocation || c.dropoffLocation) && (
+                <ChildLocMeta>
+                  {c.pickupLocation && (
+                    <LocItem>
+                      <span>🏠</span>
+                      <span>Pick-up: {c.pickupLocation.lat.toFixed(5)}, {c.pickupLocation.lng.toFixed(5)}</span>
+                    </LocItem>
+                  )}
+                  {c.dropoffLocation && (
+                    <LocItem>
+                      <span>🏫</span>
+                      <span>Drop-off ({c.school}): {c.dropoffLocation.lat.toFixed(5)}, {c.dropoffLocation.lng.toFixed(5)}</span>
+                    </LocItem>
+                  )}
+                </ChildLocMeta>
+              )}
             </ChildItem>
           ))}
         </ChildrenList>
+
+        {/* ── Route map (always shown when coords exist; especially useful for driver before accepting) ── */}
+        <BookingRouteMap
+          children={booking.children}
+          direction={booking.direction}
+        />
 
         {/* ── Driver: trip journey panel ── */}
         {showDriverJourney && (
@@ -800,6 +825,22 @@ const ChildName = styled.p`
 
 const ChildMeta = styled.p`
   font-size: 0.8rem; color: ${colors.mutedText}; margin: 0;
+`;
+
+const ChildLocMeta = styled.div`
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+`;
+
+const LocItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: ${colors.mutedText};
+  font-family: monospace;
 `;
 
 const CancelRow = styled.div`

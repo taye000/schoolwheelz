@@ -6,6 +6,7 @@ import Driver from "@/models/DriversRegistration";
 import Parent from "@/models/ParentsRegistration";
 import { getAuthUser } from "@/utils/authApp";
 import { sendSMS, SmsTemplates } from "@/utils/sms";
+import { createNotification } from "@/utils/notify";
 
 /**
  * POST /api/bookings/[id]/start
@@ -80,6 +81,17 @@ export async function POST(
         SmsTemplates.driverOnTheWay(user.fullName, 10), // default 10-min ETA
       );
     }
+
+    createNotification({
+      userId: booking.parent.toString(),
+      userType: "parent",
+      type: "trip_started",
+      title: "Trip Started",
+      body: `${user.fullName} has started the trip and is on the way!`,
+      href: `/bookings/${booking._id}`,
+      resourceId: booking._id.toString(),
+      resourceType: "booking",
+    });
 
     return NextResponse.json({ success: true, data: booking });
   } catch (error) {

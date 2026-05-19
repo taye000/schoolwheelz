@@ -139,6 +139,12 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ success: true, data: schools });
       }
 
+      // billing and logs have their own dedicated routes; return empty here
+      // so the shared fetchView() doesn't 400 when switching to those tabs
+      case "billing":
+      case "logs":
+        return NextResponse.json({ success: true, data: [] });
+
       default:
         return NextResponse.json(
           { success: false, error: "Unknown view." },

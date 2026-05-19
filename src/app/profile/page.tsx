@@ -85,6 +85,7 @@ interface User {
   cars?: Car[];
   schools?: SchoolItem[];
   children?: Child[];
+  billingPreference?: { period: "weekly" | "monthly"; channel: "sms" | "email" | "both" };
 }
 
 export default function ProfilePage() {
@@ -408,6 +409,7 @@ export default function ProfilePage() {
             />
           ) : editing ? (
             /* ── EDIT MODE ── */
+            <>
             <EditCard>
               <SectionTitle>Personal Info</SectionTitle>
               <TwoCol>
@@ -543,6 +545,10 @@ export default function ProfilePage() {
                   </Button>
               </>
             </EditCard>
+
+            {/* Billing Preferences */}
+            <BillingPrefCard user={user} onSaved={(prefs) => setUser((p) => p ? { ...p, billingPreference: prefs } : p)} />
+            </>
           ) : (
             /* ── VIEW MODE ── */
             <ParentCard>
@@ -1185,3 +1191,103 @@ const AddCarForm = styled.div`
   padding: 16px;
   margin-top: 10px;
 `;
+
+/* ── Billing Preference Card ── */
+
+interface BillingPrefCardProps {
+  user: User;
+  onSaved: (prefs: { period: "weekly" | "monthly"; channel: "sms" | "email" | "both" }) => void;
+}
+
+function BillingPrefCard({ user, onSaved }: BillingPrefCardProps) {
+  const [period, setPeriod] = useState<"weekly" | "monthly">(
+    user.billingPreference?.period ?? "monthly"
+  );
+  const [channel, setChannel] = useState<"sms" | "email" | "both">(
+    user.billingPreference?.channel ?? "email"
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/parents/${user._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ billingPreference: { period, channel } }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onSaved({ period, channel });
+        toast.success("Billing preference saved!");
+      } else {
+        toast.error(data.error ?? "Failed to save");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <BillingPrefWrap>
+      <Typography variant="h6" sx={{ fontWeight: 700, color: colors.deepNavy, mb: 2 }}>
+        📋 Billing Preferences
+      </Typography>
+      <Typography variant="body2" sx={{ color: colors.mutedText, mb: 2 }}>
+        Choose how and when you receive billing summaries for your children&apos;s trips.
+      </Typography>
+      <BillingRow>
+        <TextField
+          select
+          label="Billing Period"
+          value={period}
+          onChange={(e) => setPeriod(e.target.value as "weekly" | "monthly")}
+          size="small"
+          sx={{ flex: 1 }}
+        >
+          <MenuItem value="weekly">Weekly</MenuItem>
+          <MenuItem value="monthly">Monthly</MenuItem>
+        </TextField>
+        <TextField
+          select
+          label="Delivery Channel"
+          value={channel}
+          onChange={(e) => setChannel(e.target.value as "sms" | "email" | "both")}
+          size="small"
+          sx={{ flex: 1 }}
+        >
+          <MenuItem value="email">Email</MenuItem>
+          <MenuItem value="sms">SMS</MenuItem>
+          <MenuItem value="both">Email + SMS</MenuItem>
+        </TextField>
+      </BillingRow>
+      <Button
+        variant="contained"
+        size="small"
+        onClick={handleSave}
+        disabled={saving}
+        sx={{ mt: 2, borderRadius: "50px" }}
+      >
+        {saving ? "Saving…" : "Save Preference"}
+      </Button>
+    </BillingPrefWrap>
+  );
+}
+
+const BillingPrefWrap = styled.div`
+  background: ${colors.pureWhite};
+  border: 1px solid ${colors.border};
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 16px;
+`;
+
+const BillingRow = styled.div`
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+

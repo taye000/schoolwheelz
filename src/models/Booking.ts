@@ -55,6 +55,8 @@ export interface IBooking extends Document {
     eveningTime?: string | null;
   };
   isDeleted: boolean;
+  /** Trip price in KES — set by driver when accepting */
+  price?: number;
   tracking?: {
     currentLocation?: {
       type: "Point";
@@ -145,6 +147,7 @@ const BookingSchema: Schema = new Schema(
       isTrackingEnabled: { type: Boolean, default: false },
       lastUpdated: { type: Date },
     },
+    price: { type: Number, min: 0, default: null },
   },
   { timestamps: true },
 );

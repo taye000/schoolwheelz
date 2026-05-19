@@ -12,9 +12,16 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get("page") ?? "1", 10);
     const limit = parseInt(searchParams.get("limit") ?? "10", 10);
     const schoolId = searchParams.get("school"); // filter by school ObjectId
+    const q = searchParams.get("q")?.trim(); // free-text: driver name or estate
 
     const filter: Record<string, unknown> = { isProfileActive: true };
     if (schoolId) filter.schools = schoolId;
+    if (q) {
+      filter.$or = [
+        { fullName: { $regex: q, $options: "i" } },
+        { estate: { $regex: q, $options: "i" } },
+      ];
+    }
 
     const drivers = await Driver.find(filter)
       .populate("schools", "name estate")

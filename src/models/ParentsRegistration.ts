@@ -27,6 +27,10 @@ export interface IParent extends Document {
   children: IChild[];
   /** Driver _ids the parent has marked as preferred */
   favoriteDrivers: mongoose.Types.ObjectId[];
+  billingPreference?: {
+    period: "weekly" | "monthly";
+    channel: "sms" | "email" | "both";
+  };
 }
 
 const ParentSchema: Schema = new Schema({
@@ -57,6 +61,10 @@ const ParentSchema: Schema = new Schema({
   ],
   password: { type: String, required: true },
   favoriteDrivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Driver" }],
+  billingPreference: {
+    period: { type: String, enum: ["weekly", "monthly"], default: "monthly" },
+    channel: { type: String, enum: ["sms", "email", "both"], default: "email" },
+  },
 });
 
 ParentSchema.pre<IParent>("save", async function (next) {

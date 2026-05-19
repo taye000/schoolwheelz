@@ -7,6 +7,7 @@ import Driver from "@/models/DriversRegistration";
 import Parent from "@/models/ParentsRegistration";
 import { getAuthUser, AuthenticatedUser } from "@/utils/authApp";
 import { generateBookingId } from "@/utils/generateBookingID";
+import { createNotification } from "@/utils/notify";
 
 export async function POST(req: NextRequest) {
   await dbConnect();
@@ -99,6 +100,16 @@ export async function POST(req: NextRequest) {
       });
 
       await booking.populate([{ path: "driver" }, { path: "parent" }]);
+      createNotification({
+        userId: driver._id.toString(),
+        userType: "driver",
+        type: "booking_new",
+        title: "New Booking Request",
+        body: `${user.fullName} has sent a recurring booking request.`,
+        href: `/trips`,
+        resourceId: booking._id.toString(),
+        resourceType: "booking",
+      });
       return NextResponse.json(
         { success: true, data: booking },
         { status: 201 },
@@ -126,6 +137,16 @@ export async function POST(req: NextRequest) {
     });
 
     await booking.populate([{ path: "driver" }, { path: "parent" }]);
+    createNotification({
+      userId: driver._id.toString(),
+      userType: "driver",
+      type: "booking_new",
+      title: "New Booking Request",
+      body: `${user.fullName} has sent a booking request.`,
+      href: `/trips`,
+      resourceId: booking._id.toString(),
+      resourceType: "booking",
+    });
     return NextResponse.json({ success: true, data: booking }, { status: 201 });
   } catch (error) {
     console.error(error);

@@ -25,6 +25,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -50,7 +54,7 @@ interface Stats {
   totalBookings: number;
 }
 
-type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools";
+type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools" | "billing" | "logs";
 
 const TABS: { label: string; value: TabView }[] = [
   { label: "Overview", value: "overview" },
@@ -62,6 +66,8 @@ const TABS: { label: string; value: TabView }[] = [
   { label: "Bookings", value: "bookings" },
   { label: "Cars", value: "cars" },
   { label: "Schools", value: "schools" },
+  { label: "Billing", value: "billing" },
+  { label: "Audit Logs", value: "logs" },
 ];
 
 export default function AdminPage() {
@@ -73,11 +79,14 @@ export default function AdminPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const { data } = await axios.get("/api/admin?view=stats");
+      const { data } = await axios.get("/api/admin?view=stats", { withCredentials: true });
       if (data.success) setStats(data.data);
-    } catch {
-      // not admin — redirect
-      router.push("/");
+      else router.push("/login");
+    } catch (err: any) {
+      // not admin or unauthenticated — redirect
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        router.push("/login");
+      }
     }
   }, [router]);
 
@@ -89,7 +98,7 @@ export default function AdminPage() {
     setLoading(true);
     setRows([]);
     try {
-      const { data } = await axios.get(`/api/admin?view=${view}`);
+      const { data } = await axios.get(`/api/admin?view=${view}`, { withCredentials: true });
       if (data.success) setRows(data.data);
     } catch (err: any) {
       if (err?.response?.status === 403) router.push("/");
@@ -169,6 +178,8 @@ export default function AdminPage() {
         {activeTab === "cars" && !loading && <CarsTable rows={rows} />}
 
         {activeTab === "schools" && <SchoolsTab />}
+        {activeTab === "billing" && <BillingTab />}
+        {activeTab === "logs" && <LogsTab />}
       </TabBody>
     </PageWrap>
   );
@@ -806,3 +817,313 @@ const Empty = styled.div`
   color: ${colors.mutedText};
   font-size: 0.95rem;
 `;
+
+/* ─── Billing Tab ─── */
+
+const STATUS_COLORS: Record<string, "default" | "warning" | "success" | "error"> = {
+  pending: "warning",
+  paid: "success",
+  overdue: "error",
+  waived: "default",
+};
+
+function BillingTab() {
+  const [bills, setBills] = useState<any[]>([]);
+  const [parents, setParents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("all");
+  // Generate dialog
+  const [genOpen, setGenOpen] = useState(false);
+  const [genParentId, setGenParentId] = useState("");
+  const [genFrom, setGenFrom] = useState("");
+  const [genTo, setGenTo] = useState("");
+  const [genPeriod, setGenPeriod] = useState("monthly");
+  const [generating, setGenerating] = useState(false);
+  // Edit dialog
+  const [editBill, setEditBill] = useState<any | null>(null);
+  const [editTotal, setEditTotal] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fetchBills = async () => {
+    setLoading(true);
+    try {
+      const url = statusFilter !== "all" ? `/api/billing?status=${statusFilter}` : "/api/billing";
+      const { data } = await axios.get(url, { withCredentials: true });
+      if (data.success) setBills(data.data);
+    } catch { toast.error("Failed to load bills"); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    fetchBills();
+    axios.get("/api/admin?view=parents", { withCredentials: true }).then((r) => {
+      if (r.data.success) setParents(r.data.data);
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
+
+  const handleGenerate = async () => {
+    if (!genParentId || !genFrom || !genTo) { toast.error("Fill all fields"); return; }
+    setGenerating(true);
+    try {
+      await axios.post("/api/billing", {
+        parentId: genParentId, periodStart: genFrom, periodEnd: genTo, period: genPeriod,
+      }, { withCredentials: true });
+      toast.success("Bill generated!");
+      setGenOpen(false);
+      fetchBills();
+    } catch (e: any) { toast.error(e?.response?.data?.message ?? "Failed"); }
+    finally { setGenerating(false); }
+  };
+
+  const openEdit = (bill: any) => {
+    setEditBill(bill);
+    setEditTotal(String(bill.total));
+    setEditNote(bill.adminNote ?? "");
+    setEditStatus(bill.status);
+  };
+
+  const handleSave = async () => {
+    if (!editBill) return;
+    setSaving(true);
+    try {
+      await axios.patch(`/api/billing/${editBill._id}`, {
+        total: Number(editTotal), adminNote: editNote, status: editStatus,
+      }, { withCredentials: true });
+      toast.success("Bill updated!");
+      setEditBill(null);
+      fetchBills();
+    } catch { toast.error("Failed to update"); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this bill permanently?")) return;
+    try {
+      await axios.delete(`/api/billing/${id}`, { withCredentials: true });
+      toast.success("Deleted");
+      fetchBills();
+    } catch { toast.error("Failed"); }
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: colors.deepNavy }}>Billing</Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel>Status</InputLabel>
+            <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
+              {["all","pending","paid","overdue","waived"].map((s) => <MenuItem key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Button variant="contained" size="small" onClick={() => setGenOpen(true)} sx={{ borderRadius: "50px" }}>
+            + Generate Bill
+          </Button>
+        </Box>
+      </Box>
+
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+      ) : bills.length === 0 ? (
+        <Empty>No bills found.</Empty>
+      ) : (
+        <StyledTable component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                {["Ref","Parent","Period","Items","Subtotal","Total","Status","Actions"].map((h) => <TableCell key={h}>{h}</TableCell>)}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {bills.map((b) => (
+                <TableRow key={b._id}>
+                  <TableCell sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{b.billRef}</TableCell>
+                  <TableCell>{b.parentName}</TableCell>
+                  <TableCell sx={{ fontSize: "0.75rem" }}>
+                    {new Date(b.periodStart).toLocaleDateString("en-KE", { month:"short", day:"numeric" })}
+                    {" – "}
+                    {new Date(b.periodEnd).toLocaleDateString("en-KE", { month:"short", day:"numeric", year:"numeric" })}
+                  </TableCell>
+                  <TableCell>{b.lineItems?.length ?? 0}</TableCell>
+                  <TableCell>KES {b.subtotal?.toLocaleString()}</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>KES {b.total?.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Chip label={b.status} color={STATUS_COLORS[b.status] ?? "default"} size="small" />
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip title="Edit / Mark Paid">
+                      <IconButton size="small" onClick={() => openEdit(b)}><EditIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton size="small" color="error" onClick={() => handleDelete(b._id)}><CancelIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </StyledTable>
+      )}
+
+      {/* Generate Dialog */}
+      <Dialog open={genOpen} onClose={() => setGenOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Generate Bill</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "16px !important" }}>
+          <FormControl size="small" fullWidth>
+            <InputLabel>Parent</InputLabel>
+            <Select value={genParentId} label="Parent" onChange={(e) => setGenParentId(e.target.value)}>
+              {parents.map((p: any) => <MenuItem key={p._id} value={p._id}>{p.fullName}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <TextField label="From" type="date" size="small" value={genFrom} onChange={(e) => setGenFrom(e.target.value)} InputLabelProps={{ shrink: true }} />
+          <TextField label="To" type="date" size="small" value={genTo} onChange={(e) => setGenTo(e.target.value)} InputLabelProps={{ shrink: true }} />
+          <FormControl size="small" fullWidth>
+            <InputLabel>Period</InputLabel>
+            <Select value={genPeriod} label="Period" onChange={(e) => setGenPeriod(e.target.value)}>
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGenOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleGenerate} disabled={generating}>
+            {generating ? "Generating…" : "Generate"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editBill} onClose={() => setEditBill(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Edit Bill — {editBill?.billRef}</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "16px !important" }}>
+          <TextField label="Total (KES)" type="number" size="small" value={editTotal} onChange={(e) => setEditTotal(e.target.value)} />
+          <FormControl size="small" fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select value={editStatus} label="Status" onChange={(e) => setEditStatus(e.target.value)}>
+              {["pending","paid","overdue","waived"].map((s) => <MenuItem key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <TextField label="Admin Note" size="small" multiline rows={2} value={editNote} onChange={(e) => setEditNote(e.target.value)} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditBill(null)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
+/* ─── Logs Tab ─── */
+
+const ACTION_COLORS: Record<string, "default" | "primary" | "warning" | "error" | "success" | "info"> = {
+  create: "success",
+  update: "info",
+  delete: "error",
+  status_change: "warning",
+  payment_update: "primary",
+  login: "default",
+  logout: "default",
+};
+
+function LogsTab() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [resourceFilter, setResourceFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: "50" });
+      if (resourceFilter) params.set("resource", resourceFilter);
+      if (actionFilter) params.set("action", actionFilter);
+      const { data } = await axios.get(`/api/admin/logs?${params}`, { withCredentials: true });
+      if (data.success) {
+        setLogs(data.data);
+        setTotalPages(data.pagination?.pages ?? 1);
+      }
+    } catch { toast.error("Failed to load logs"); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchLogs(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [page, resourceFilter, actionFilter]);
+
+  const RESOURCES = ["Booking","Driver","School","Bill","Parent"];
+  const ACTIONS = ["create","update","delete","status_change","payment_update","login","logout"];
+
+  return (
+    <Box>
+      <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: colors.deepNavy, flex: 1 }}>Audit Logs</Typography>
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Resource</InputLabel>
+          <Select value={resourceFilter} label="Resource" onChange={(e) => { setResourceFilter(e.target.value); setPage(1); }}>
+            <MenuItem value="">All</MenuItem>
+            {RESOURCES.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Action</InputLabel>
+          <Select value={actionFilter} label="Action" onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}>
+            <MenuItem value="">All</MenuItem>
+            {ACTIONS.map((a) => <MenuItem key={a} value={a}>{a}</MenuItem>)}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+      ) : logs.length === 0 ? (
+        <Empty>No audit logs yet.</Empty>
+      ) : (
+        <StyledTable component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                {["Time","Actor","Type","Action","Resource","Detail"].map((h) => <TableCell key={h}>{h}</TableCell>)}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {logs.map((l) => (
+                <TableRow key={l._id}>
+                  <TableCell sx={{ fontSize: "0.72rem", whiteSpace: "nowrap" }}>
+                    {new Date(l.createdAt).toLocaleString("en-KE", { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" })}
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>{l.actorName}</TableCell>
+                  <TableCell>
+                    <Chip label={l.actorType} size="small" variant="outlined" />
+                  </TableCell>
+                  <TableCell>
+                    <Chip label={l.action} color={ACTION_COLORS[l.action] ?? "default"} size="small" />
+                  </TableCell>
+                  <TableCell>{l.resource} <span style={{ color: colors.mutedText, fontSize: "0.72rem" }}>{l.resourceId?.slice(-6)}</span></TableCell>
+                  <TableCell sx={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.8rem" }}>
+                    {l.detail}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </StyledTable>
+      )}
+
+      {totalPages > 1 && (
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mt: 2 }}>
+          <Button size="small" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>
+          <Typography variant="body2" sx={{ alignSelf: "center" }}>{page} / {totalPages}</Typography>
+          <Button size="small" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+        </Box>
+      )}
+    </Box>
+  );
+}
+

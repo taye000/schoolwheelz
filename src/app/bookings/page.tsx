@@ -16,7 +16,9 @@ import {
   TableRow,
   Paper,
   Chip,
+  Tooltip,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
 
@@ -130,12 +132,28 @@ export default function BookingsPage() {
 
   return (
     <PageWrapper>
-      <Typography variant="h4" sx={{ fontWeight: 700, color: colors.deepNavy, mb: 0.5 }}>
-        My Bookings
-      </Typography>
-      <Typography variant="body2" sx={{ color: colors.mutedText, mb: 4 }}>
-        {bookings.length} booking{bookings.length !== 1 ? "s" : ""}
-      </Typography>
+      <PageHeader>
+        <div>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: colors.deepNavy, mb: 0.5 }}>
+            My Bookings
+          </Typography>
+          <Typography variant="body2" sx={{ color: colors.mutedText }}>
+            {bookings.length} booking{bookings.length !== 1 ? "s" : ""}
+          </Typography>
+        </div>
+        {user?.userType === "parent" && (
+          <Tooltip title="Browse available drivers and request a trip" placement="left">
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => router.push("/drivers")}
+              sx={{ borderRadius: "50px", fontWeight: 700, px: 3, height: 42, textTransform: "none", boxShadow: "none", whiteSpace: "nowrap" }}
+            >
+              Book a Driver
+            </Button>
+          </Tooltip>
+        )}
+      </PageHeader>
 
       <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${colors.border}`, borderRadius: "16px", overflow: "hidden" }}>
         <Table>
@@ -204,6 +222,15 @@ const PageWrapper = styled.div`
   max-width: 1100px;
   margin: 0 auto;
   padding: 40px 24px;
+`;
+
+const PageHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 32px;
 `;
 
 const Center = styled.div`

@@ -6,6 +6,8 @@ import Driver from "@/models/DriversRegistration";
 import Parent from "@/models/ParentsRegistration";
 import { getAuthUser } from "@/utils/authApp";
 import { sendSMS, SmsTemplates } from "@/utils/sms";
+import { log } from "@/utils/audit";
+import { createNotification } from "@/utils/notify";
 
 export async function PATCH(
   req: NextRequest,
@@ -22,6 +24,12 @@ export async function PATCH(
         { status: 403 },
       );
     }
+
+    const body = await req.json().catch(() => ({}));
+    const price =
+      typeof body.price === "number" && body.price >= 0
+        ? body.price
+        : undefined;
 
     const booking = await Booking.findById(params.id);
     if (!booking)
@@ -50,6 +58,7 @@ export async function PATCH(
       );
 
     booking.status = "accepted";
+    if (price !== undefined) booking.price = price;
     await booking.save();
 
     // SMS parent
@@ -60,6 +69,28 @@ export async function PATCH(
         SmsTemplates.bookingAccepted(parent.fullName, driver.fullName),
       );
     }
+
+    log({
+      actorId: user.id,
+      actorType: "driver",
+      actorName: user.fullName,
+      action: "status_change",
+      resource: "Booking",
+      resourceId: booking._id.toString(),
+      detail: `Driver accepted booking${price !== undefined ? ` at KES ${price}` : ""}`,
+      meta: { status: "accepted", price },
+    });
+
+    createNotification({
+      userId: booking.parent.toString(),
+      userType: "parent",
+      type: "booking_accepted",
+      title: "Booking Accepted",
+      body: `${driver.fullName} has accepted your booking${price !== undefined ? ` — KES ${price}` : ""}.`,
+      href: `/bookings/${booking._id}`,
+      resourceId: booking._id.toString(),
+      resourceType: "booking",
+    });
 
     return NextResponse.json({ success: true, data: booking });
   } catch (error) {
