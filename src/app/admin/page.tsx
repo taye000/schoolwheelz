@@ -820,7 +820,7 @@ const Empty = styled.div`
 
 /* ─── Billing Tab ─── */
 
-const STATUS_COLORS: Record<string, "default" | "warning" | "success" | "error"> = {
+const BILL_STATUS_COLORS: Record<string, "default" | "warning" | "success" | "error"> = {
   pending: "warning",
   paid: "success",
   overdue: "error",
@@ -951,7 +951,7 @@ function BillingTab() {
                   <TableCell>KES {b.subtotal?.toLocaleString()}</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>KES {b.total?.toLocaleString()}</TableCell>
                   <TableCell>
-                    <Chip label={b.status} color={STATUS_COLORS[b.status] ?? "default"} size="small" />
+                    <Chip label={b.status} color={BILL_STATUS_COLORS[b.status] ?? "default"} size="small" />
                   </TableCell>
                   <TableCell>
                     <Tooltip title="Edit / Mark Paid">
