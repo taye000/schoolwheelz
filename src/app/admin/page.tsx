@@ -930,7 +930,7 @@ function BillingTab() {
       ) : bills.length === 0 ? (
         <Empty>No bills found.</Empty>
       ) : (
-        <StyledTable component={Paper}>
+        <StyledTable>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -1085,7 +1085,7 @@ function LogsTab() {
       ) : logs.length === 0 ? (
         <Empty>No audit logs yet.</Empty>
       ) : (
-        <StyledTable component={Paper}>
+        <StyledTable>
           <Table size="small">
             <TableHead>
               <TableRow>
