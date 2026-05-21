@@ -6,8 +6,9 @@ import Driver from "@/models/DriversRegistration";
 import { getAuthUser } from "@/utils/authApp";
 
 /**
- * PATCH /api/drivers/[id]/cars/[carId]/activate
- * Sets the specified car as active and deactivates all others.
+ * PATCH /api/drivers/[id]/cars/[carId]
+ * - activate: { action: "activate" }  — sets this car active, deactivates others
+ * - edit:     { make?, model?, regNumber?, photo?, availableSeats?, color?, year? }
  */
 export async function PATCH(
   req: NextRequest,
@@ -54,14 +55,33 @@ export async function PATCH(
       );
     }
 
-    // Deactivate all, then activate the target
-    driver.cars.forEach((c: any) => {
-      c.isActive = false;
-    });
-    car.isActive = true;
+    const body = await req.json();
 
-    // Update isProfileActive
-    driver.isProfileActive = driver.isValidated;
+    if (body.action === "activate") {
+      // Deactivate all, then activate the target
+      driver.cars.forEach((c: any) => {
+        c.isActive = false;
+      });
+      car.isActive = true;
+      driver.isProfileActive = driver.isValidated;
+    } else {
+      // Edit car fields — only allow safe fields
+      const allowed = [
+        "make",
+        "model",
+        "regNumber",
+        "photo",
+        "availableSeats",
+        "color",
+        "year",
+        "vehicleType",
+      ];
+      for (const field of allowed) {
+        if (body[field] !== undefined) {
+          car[field] = body[field];
+        }
+      }
+    }
 
     await driver.save();
 
@@ -70,16 +90,12 @@ export async function PATCH(
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { success: false, error: "Failed to activate car." },
+      { success: false, error: "Failed to update car." },
       { status: 500 },
     );
   }
 }
 
-/**
- * DELETE /api/drivers/[id]/cars/[carId]/activate  — remove a car
- * Reusing this route file; a separate DELETE could also live here.
- */
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string; carId: string } },

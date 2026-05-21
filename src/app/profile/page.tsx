@@ -38,6 +38,7 @@ import PhoneInput from "@/components/PhoneInput";
 import DriverSchoolsSection, { SchoolItem } from "@/components/DriverSchoolsSection";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
+import ImageUpload from "@/components/ImageUpload";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
@@ -147,6 +148,7 @@ export default function ProfilePage() {
       fullName: user.fullName,
       phoneNumber: user.phoneNumber,
       address: user.address ?? "",
+      photo: user.photo ?? "",
       children: user.children ? JSON.parse(JSON.stringify(user.children)) : [],
     });
     setNewPassword("");
@@ -289,7 +291,7 @@ export default function ProfilePage() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ action: "activate" }),
       });
       const data = await res.json();
       if (data.success) {
@@ -300,6 +302,23 @@ export default function ProfilePage() {
       }
     } catch {
       toast.error("Network error.");
+    }
+  };
+
+  const handleUpdateCar = async (carId: string, fields: Record<string, unknown>) => {
+    if (!user) return;
+    const res = await fetch(`/api/drivers/${user._id}/cars/${carId}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setUser((prev) => prev ? { ...prev, cars: data.data.cars } : prev);
+      toast.success("Vehicle updated!");
+    } else {
+      toast.error(data.error ?? "Failed to update vehicle.");
     }
   };
 
@@ -405,6 +424,7 @@ export default function ProfilePage() {
               onToggleAddCar={() => setShowAddCar((x) => !x)}
               onNewCarChange={(field, val) => setNewCar((p) => ({ ...p, [field]: val }))}
               onAddCar={handleAddCar}
+              onUpdateCar={handleUpdateCar}
               onSchoolsUpdate={(schools) => setUser((prev) => prev ? { ...prev, schools } : prev)}
             />
           ) : editing ? (
@@ -712,6 +732,125 @@ function DriverViewCard({ user, onSchoolsUpdate }: { user: User; onSchoolsUpdate
   );
 }
 
+/* ─── Inline Car Edit Item ─── */
+
+function CarEditItem({
+  car,
+  driverId,
+  onSetActive,
+  onRemove,
+  onUpdate,
+}: {
+  car: Car;
+  driverId: string;
+  onSetActive: (id: string) => void;
+  onRemove: (id: string) => void;
+  onUpdate: (id: string, fields: Record<string, unknown>) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState({
+    make: car.make,
+    model: car.model,
+    regNumber: car.regNumber,
+    availableSeats: String(car.availableSeats),
+    photo: car.photo ?? "",
+  });
+
+  // Keep draft in sync if parent refreshes car data
+  React.useEffect(() => {
+    setDraft({
+      make: car.make,
+      model: car.model,
+      regNumber: car.regNumber,
+      availableSeats: String(car.availableSeats),
+      photo: car.photo ?? "",
+    });
+  }, [car]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onUpdate(car._id, {
+        make: draft.make,
+        model: draft.model,
+        regNumber: draft.regNumber,
+        availableSeats: Number(draft.availableSeats),
+        photo: draft.photo || undefined,
+      });
+      setOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <CarEditRow>
+      {/* Header row — always visible */}
+      <Box sx={{ display: "flex", alignItems: "center", width: "100%", gap: 0.5 }}>
+        <Box sx={{ flex: 1, cursor: "pointer" }} onClick={() => setOpen((v) => !v)}>
+          <Typography variant="body2" sx={{ fontWeight: 700, color: colors.deepNavy }}>
+            {car.make} {car.model}
+            {car.isActive && (
+              <Chip label="Active" size="small" color="success" sx={{ ml: 1, height: 18, fontSize: "0.68rem" }} />
+            )}
+          </Typography>
+          <Typography variant="caption" sx={{ color: colors.mutedText, fontFamily: "monospace" }}>
+            {car.regNumber} · {car.availableSeats} seats
+          </Typography>
+        </Box>
+        <Tooltip title="Edit vehicle">
+          <IconButton size="small" onClick={() => setOpen((v) => !v)} sx={{ color: open ? colors.skyBlue : colors.mutedText }}>
+            <EditIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={car.isActive ? "Currently active" : "Set as active car"}>
+          <IconButton
+            size="small"
+            onClick={() => !car.isActive && onSetActive(car._id)}
+            sx={{ color: car.isActive ? "#38A169" : colors.mutedText }}
+          >
+            {car.isActive ? <RadioButtonCheckedIcon /> : <RadioButtonUncheckedIcon />}
+          </IconButton>
+        </Tooltip>
+        {!car.isActive && (
+          <Tooltip title="Remove vehicle">
+            <IconButton size="small" color="error" onClick={() => onRemove(car._id)}>
+              <RemoveCircleOutlineIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+
+      {/* Expandable edit form */}
+      <Collapse in={open} unmountOnExit sx={{ width: "100%", mt: 1.5 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+            <TextField label="Make" value={draft.make} onChange={(e) => setDraft((p) => ({ ...p, make: e.target.value }))} size="small" fullWidth />
+            <TextField label="Model" value={draft.model} onChange={(e) => setDraft((p) => ({ ...p, model: e.target.value }))} size="small" fullWidth />
+          </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+            <TextField label="Reg Number" value={draft.regNumber} onChange={(e) => setDraft((p) => ({ ...p, regNumber: e.target.value }))} size="small" fullWidth />
+            <TextField label="Available Seats" type="number" value={draft.availableSeats} onChange={(e) => setDraft((p) => ({ ...p, availableSeats: e.target.value }))} size="small" fullWidth inputProps={{ min: 1, max: 20 }} />
+          </Box>
+          <ImageUpload
+            label="Car Photo"
+            value={draft.photo}
+            onChange={(url) => setDraft((p) => ({ ...p, photo: url }))}
+            folder="cars"
+          />
+          <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
+            <Button size="small" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button size="small" variant="contained" onClick={handleSave} disabled={saving} sx={{ borderRadius: "50px" }}>
+              {saving ? "Saving…" : "Save Vehicle"}
+            </Button>
+          </Box>
+        </Box>
+      </Collapse>
+    </CarEditRow>
+  );
+}
+
 interface DriverEditCardProps {
   user: User;
   editData: any;
@@ -734,6 +873,7 @@ interface DriverEditCardProps {
   onToggleAddCar: () => void;
   onNewCarChange: (field: string, value: string) => void;
   onAddCar: () => void;
+  onUpdateCar: (carId: string, fields: Record<string, unknown>) => Promise<void>;
   onSchoolsUpdate: (schools: SchoolItem[]) => void;
 }
 
@@ -741,20 +881,30 @@ function DriverEditCard({
   user, editData, newPassword, confirmPassword, showNewPw, showConfirmPw,
   passwordMismatch, phoneError, showAddCar, newCar, addingCar,
   onFieldChange, onPasswordChange, onPhoneChange, onToggleNewPw, onToggleConfirmPw,
-  onSetActiveCar, onRemoveCar, onToggleAddCar, onNewCarChange, onAddCar, onSchoolsUpdate,
+  onSetActiveCar, onRemoveCar, onToggleAddCar, onNewCarChange, onAddCar, onUpdateCar, onSchoolsUpdate,
 }: DriverEditCardProps) {
   return (
     <EditCard>
       <SectionTitle>Personal Info</SectionTitle>
-      <TextField label="Full Name" value={editData.fullName ?? ""} onChange={(e) => onFieldChange("fullName", e.target.value)} fullWidth size="small" sx={{ mb: 1.75 }} />
-      <PhoneInput
-        label="Phone Number"
-        value={editData.phoneNumber ?? ""}
-        onChange={onPhoneChange}
-        size="small"
-        error={phoneError}
-        helperText={phoneError ? "Enter a valid phone number" : undefined}
-      />
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
+        <ImageUpload
+          value={editData.photo ?? ""}
+          onChange={(url) => onFieldChange("photo", url)}
+          folder="profiles"
+          size="small"
+        />
+        <Box sx={{ flex: 1 }}>
+          <TextField label="Full Name" value={editData.fullName ?? ""} onChange={(e) => onFieldChange("fullName", e.target.value)} fullWidth size="small" sx={{ mb: 1.75 }} />
+          <PhoneInput
+            label="Phone Number"
+            value={editData.phoneNumber ?? ""}
+            onChange={onPhoneChange}
+            size="small"
+            error={phoneError}
+            helperText={phoneError ? "Enter a valid phone number" : undefined}
+          />
+        </Box>
+      </Box>
 
       <SectionTitle>Change Password <OptionalTag>(optional)</OptionalTag></SectionTitle>
       <TwoCol>
@@ -806,34 +956,7 @@ function DriverEditCard({
       )}
 
       {(user.cars ?? []).map((car) => (
-        <CarEditRow key={car._id}>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="body2" sx={{ fontWeight: 700, color: colors.deepNavy }}>
-              {car.make} {car.model}
-            </Typography>
-            <Typography variant="caption" sx={{ color: colors.mutedText, fontFamily: "monospace" }}>
-              {car.regNumber} · {car.availableSeats} seats
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Tooltip title={car.isActive ? "Currently active" : "Set as active car"}>
-              <IconButton
-                size="small"
-                onClick={() => !car.isActive && onSetActiveCar(car._id)}
-                sx={{ color: car.isActive ? "#38A169" : colors.mutedText }}
-              >
-                {car.isActive ? <RadioButtonCheckedIcon /> : <RadioButtonUncheckedIcon />}
-              </IconButton>
-            </Tooltip>
-            {!car.isActive && (
-              <Tooltip title="Remove vehicle">
-                <IconButton size="small" color="error" onClick={() => onRemoveCar(car._id)}>
-                  <RemoveCircleOutlineIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Box>
-        </CarEditRow>
+        <CarEditItem key={car._id} car={car} driverId={user._id} onSetActive={onSetActiveCar} onRemove={onRemoveCar} onUpdate={onUpdateCar} />
       ))}
 
       {/* Add car toggle */}
@@ -861,8 +984,13 @@ function DriverEditCard({
               size="small" fullWidth inputProps={{ min: 1, max: 20 }}
             />
           </TwoCol>
-          <TextField label="Car Photo URL (optional)" value={newCar.photo} onChange={(e) => onNewCarChange("photo", e.target.value)} size="small" fullWidth sx={{ mb: 1.5 }} />
-          <Button variant="contained" size="small" onClick={onAddCar} disabled={addingCar} sx={{ borderRadius: "50px" }}>
+          <ImageUpload
+            label="Car Photo (optional)"
+            value={newCar.photo}
+            onChange={(url) => onNewCarChange("photo", url)}
+            folder="cars"
+          />
+          <Button variant="contained" size="small" onClick={onAddCar} disabled={addingCar} sx={{ borderRadius: "50px", mt: 1.5 }}>
             {addingCar ? "Adding…" : "Add Vehicle"}
           </Button>
         </AddCarForm>

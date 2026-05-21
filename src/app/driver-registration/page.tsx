@@ -26,6 +26,7 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import { colors } from "@/lib/theme";
 import PhoneInput from "@/components/PhoneInput";
+import ImageUpload from "@/components/ImageUpload";
 
 export default function DriverRegistrationPage() {
   const router = useRouter();
@@ -167,7 +168,12 @@ export default function DriverRegistrationPage() {
             />
           </Grid2>
           <Grid2>
-            <TextField label="Profile Photo URL" name="photo" value={formData.photo} onChange={handleChange} fullWidth />
+            <ImageUpload
+              label="Profile Photo (optional)"
+              value={formData.photo}
+              onChange={(url) => setFormData((p) => ({ ...p, photo: url }))}
+              folder="profiles"
+            />
             <TextField
               select
               label="Sex"
@@ -224,14 +230,11 @@ export default function DriverRegistrationPage() {
                     inputProps={{ min: 1, max: 20 }}
                   />
                 </Grid2>
-                <TextField
-                  label="Car Photo URL"
-                  name="photo"
+                <ImageUpload
+                  label="Car Photo (optional)"
                   value={car.photo}
-                  onChange={handleCarChange}
-                  fullWidth
-                  sx={{ mb: 0 }}
-                  placeholder="https://..."
+                  onChange={(url) => setCar((p) => ({ ...p, photo: url }))}
+                  folder="cars"
                 />
               </CardContent>
             </CarCard>
