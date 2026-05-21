@@ -49,14 +49,15 @@ export async function sendSMS(
     const client = getClient();
     const sms = client.SMS;
 
-    const senderId = process.env.AFRICASTALKING_SENDER_ID || undefined;
     const recipients = Array.isArray(to) ? to : [to];
 
-    const response = (await sms.send({
+    // @types/africastalking incorrectly marks `from` as required; cast to any to bypass it
+    const sendOptions = {
       to: recipients,
       message,
-      from: senderId ?? "",
-    })) as unknown as {
+    } as Parameters<typeof sms.send>[0];
+
+    const response = (await sms.send(sendOptions)) as unknown as {
       SMSMessageData: {
         Recipients: Array<{
           statusCode: number;
