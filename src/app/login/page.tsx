@@ -33,7 +33,11 @@ export default function LoginPage() {
       const response = await axios.post("/api/auth/login", formData);
       if (response.status === 200) {
         toast.success("Welcome back!");
-        router.push(formData.userType === "admin" ? "/admin" : "/profile");
+        const dest =
+          formData.userType === "admin" ? "/admin" :
+          formData.userType === "driver" ? "/profile" :
+          "/drivers";
+        router.push(dest);
       }
     } catch (error) {
       toast.error("Invalid credentials. Please try again.");

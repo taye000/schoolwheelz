@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { colors } from "@/lib/theme";
 import NotificationBell from "@/components/NotificationBell";
+import { AppLogoIcon } from "@/components/AppLogo";
 
 interface User {
     _id: string;
@@ -81,9 +82,7 @@ const Navbar: React.FC = () => {
             <StyledAppBar position="sticky" elevation={0}>
                 <ToolbarContainer>
                     <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
-                        <LogoBadge>
-                            <DirectionsBusIcon sx={{ fontSize: 20, color: colors.skyBlue }} />
-                        </LogoBadge>
+                        <AppLogoIcon size={32} />
                         <BrandName>School Wheelz</BrandName>
                     </Link>
 

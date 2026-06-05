@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         phoneNumber: user.phoneNumber,
       },
       process.env.JWT_SECRET as string,
-      { expiresIn: "7d" },
+      { expiresIn: "30d" },
     );
 
     const { password: _, ...safeUser } = user.toObject();
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
+        maxAge: 60 * 60 * 24 * 30,
         path: "/",
       }),
     );

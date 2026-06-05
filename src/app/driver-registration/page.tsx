@@ -150,7 +150,18 @@ export default function DriverRegistrationPage() {
           <SectionLabel>Personal Information</SectionLabel>
           <Grid2>
             <TextField label="Full Name" name="fullName" value={formData.fullName} onChange={handleChange} fullWidth required />
-            <TextField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
+            <TextField
+              label="Date of Birth"
+              name="dob"
+              type="date"
+              value={formData.dob}
+              onChange={handleChange}
+              fullWidth
+              required
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ max: new Date(Date.now() - 18 * 365.25 * 24 * 3600 * 1000).toISOString().split("T")[0] }}
+              helperText="Must be 18 or older"
+            />
           </Grid2>
           <Grid2>
             <TextField label="License Number" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange} fullWidth required />
@@ -347,7 +358,7 @@ const SectionLabel = styled.p`
 
 const Grid2 = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 16px;
 

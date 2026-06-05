@@ -376,7 +376,7 @@ const SectionTitle = styled.h3`
 
 const TwoCol = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 16px;
 
