@@ -48,6 +48,8 @@ interface IChild {
   gender: string;
   pickedUp?: boolean;
   droppedOff?: boolean;
+  driverNote?: string;
+  driverRating?: number;
   pickupLocation?: { lat: number; lng: number };
   dropoffLocation?: { lat: number; lng: number };
 }
@@ -174,6 +176,12 @@ export default function BookingDetailPage() {
   // Parent: review done
   const [reviewDone, setReviewDone]   = useState(false);
 
+  // Driver: passenger history notes from previous trips for this parent
+  const [passengerNotes, setPassengerNotes] = useState<{
+    childName: string; avgRating: number | null; ratingCount: number;
+    recentNote: string | null; noteCount: number;
+  }[]>([]);
+
   // Driver: start trip
   const [starting, setStarting] = useState(false);
 
@@ -223,6 +231,15 @@ export default function BookingDetailPage() {
       setChildrenOpen(false);
     }
   }, [userType]);
+
+  // Drivers: fetch historical passenger notes for this parent (pending/accepted state is most useful)
+  useEffect(() => {
+    if (userType !== "driver" || !booking?.parent?._id) return;
+    axios
+      .get(`/api/parents/${booking.parent._id}/passenger-notes`, { withCredentials: true })
+      .then((res) => { if (res.data.success) setPassengerNotes(res.data.data); })
+      .catch(() => {});
+  }, [userType, booking?.parent?._id]);
 
   const handleCancel = async () => {
     setCanceling(true);
@@ -610,6 +627,20 @@ export default function BookingDetailPage() {
             <ChildItem key={i}>
               <ChildName>{c.name}</ChildName>
               <ChildMeta>{c.age} yrs · {c.gender} · {c.school}</ChildMeta>
+
+              {/* Parent view of completed trip: show what the driver noted */}
+              {isParent && booking.status === "completed" && (c.driverRating || c.driverNote) && (
+                <ChildDriverNote>
+                  {c.driverRating && (
+                    <InlineStars>
+                      {[1,2,3,4,5].map((n) => (
+                        <span key={n} style={{ color: n <= c.driverRating! ? "#F6AD55" : "#CBD5E0", fontSize: "13px" }}>★</span>
+                      ))}
+                    </InlineStars>
+                  )}
+                  {c.driverNote && <ChildNoteText>&ldquo;{c.driverNote}&rdquo;</ChildNoteText>}
+                </ChildDriverNote>
+              )}
               {(c.pickupLocation || c.dropoffLocation) && (
                 <ChildLocMeta>
                   {c.pickupLocation && (
@@ -665,6 +696,29 @@ export default function BookingDetailPage() {
           children={booking.children}
           direction={booking.direction}
         />
+
+        {/* ── Driver: subtle passenger notes from previous trips ── */}
+        {isDriver && passengerNotes.length > 0 && (
+          <PassengerNotesSection>
+            <PassengerNotesLabel>Notes from previous trips</PassengerNotesLabel>
+            {passengerNotes.map((p) => (
+              <PassengerNoteRow key={p.childName}>
+                <PassengerNoteName>{p.childName}</PassengerNoteName>
+                {p.avgRating && (
+                  <PassengerNoteRating>
+                    {[1,2,3,4,5].map((n) => (
+                      <span key={n} style={{ color: n <= Math.round(p.avgRating!) ? "#F6AD55" : "#CBD5E0", fontSize: "12px" }}>★</span>
+                    ))}
+                    <span>{p.avgRating} · {p.ratingCount} trip{p.ratingCount !== 1 ? "s" : ""}</span>
+                  </PassengerNoteRating>
+                )}
+                {p.recentNote && (
+                  <PassengerNoteText>&ldquo;{p.recentNote}&rdquo;</PassengerNoteText>
+                )}
+              </PassengerNoteRow>
+            ))}
+          </PassengerNotesSection>
+        )}
         </Collapse>
 
         {/* ── Driver: trip journey panel ── */}
@@ -1179,6 +1233,44 @@ const ChildLocMeta = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
+`;
+
+/* Driver note shown to parent on completed trip */
+const ChildDriverNote = styled.div`
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin-top: 6px; padding: 6px 10px; border-radius: 8px;
+  background: ${colors.lightBg}; border: 1px solid ${colors.border};
+`;
+const InlineStars = styled.span`display: flex; gap: 1px; flex-shrink: 0;`;
+const ChildNoteText = styled.span`
+  font-size: 0.76rem; color: ${colors.mutedText}; font-style: italic; line-height: 1.4;
+`;
+
+/* Driver view: historical passenger notes (subtle) */
+const PassengerNotesSection = styled.div`
+  margin-top: 16px; padding: 12px 14px; border-radius: 12px;
+  background: ${colors.lightBg}; border: 1px solid ${colors.border};
+  display: flex; flex-direction: column; gap: 10px;
+`;
+const PassengerNotesLabel = styled.p`
+  font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.8px; color: ${colors.mutedText}; margin: 0;
+`;
+const PassengerNoteRow = styled.div`
+  display: flex; flex-direction: column; gap: 3px;
+  padding-bottom: 10px; border-bottom: 1px solid ${colors.border};
+  &:last-child { padding-bottom: 0; border-bottom: none; }
+`;
+const PassengerNoteName = styled.span`
+  font-size: 0.82rem; font-weight: 700; color: ${colors.deepNavy};
+`;
+const PassengerNoteRating = styled.div`
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.72rem; color: ${colors.mutedText}; font-weight: 500;
+`;
+const PassengerNoteText = styled.p`
+  font-size: 0.76rem; color: ${colors.mutedText}; font-style: italic;
+  margin: 0; line-height: 1.45;
 `;
 
 /* Clickable map navigation link */

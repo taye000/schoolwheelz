@@ -17,7 +17,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import VerifiedIcon from "@mui/icons-material/Verified";
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
-import { Avatar, Button, CircularProgress, Typography, Chip, LinearProgress } from "@mui/material";
+import { Avatar, Button, CircularProgress, Typography, Chip, LinearProgress, Collapse } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import BookingForm from "@/components/BookingForm";
 import DriverSchoolsSection, { SchoolItem } from "@/components/DriverSchoolsSection";
 import { colors } from "@/lib/theme";
@@ -109,6 +110,18 @@ export default function DriverDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  // collapsible section state – all collapsed by default so BookingForm is prominent
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [availOpen, setAvailOpen] = useState(false);
+  const [vehiclesOpen, setVehiclesOpen] = useState(false);
+  const [schoolsOpen, setSchoolsOpen] = useState(false);
+  const [reviewsOpen, setReviewsOpen] = useState(false);
+
+  // parent's previous trip history with this driver
+  interface HistoryTrip { _id: string; tripDate: string; status: string; }
+  const [myTrips, setMyTrips] = useState<HistoryTrip[]>([]);
+  const [myReview, setMyReview] = useState<Review | null>(null);
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -124,11 +137,31 @@ export default function DriverDetailPage() {
           setReviews(reviewsRes.data.data);
           setReviewTotal(reviewsRes.data.total ?? 0);
         }
-        if (meData.success) setUser(meData.user);
+        if (meData.success) {
+          setUser(meData.user);
+          // Only fetch parent trip history after we know the user is a parent
+          if (meData.user?.userType === "parent") {
+            axios
+              .get(`/api/bookings?driverId=${id}&status=completed&limit=5`)
+              .then((r) => {
+                if (r.data.success) setMyTrips(r.data.data ?? []);
+              })
+              .catch(() => {});
+            // find their own review in the already-fetched list (set after reviews resolve)
+          }
+        }
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Extract this parent's own review once both are available
+  useEffect(() => {
+    if (user?.userType === "parent" && reviews.length > 0) {
+      const own = reviews.find((r) => r.parent?._id === user._id) ?? null;
+      setMyReview(own);
+    }
+  }, [user, reviews]);
 
   if (loading)
     return (
@@ -220,20 +253,60 @@ export default function DriverDetailPage() {
             </HeroInfo>
           </HeroCard>
 
+          {/* ── Your history with this driver (parent only) ── */}
+          {user?.userType === "parent" && myTrips.length > 0 && (
+            <HistoryCard>
+              <HistoryTitle>Your history with {driver.fullName.split(" ")[0]}</HistoryTitle>
+              <HistoryMeta>
+                <HistoryStat>
+                  <HistoryNum>{myTrips.length}</HistoryNum>
+                  <HistoryLabel>completed trip{myTrips.length !== 1 ? "s" : ""}</HistoryLabel>
+                </HistoryStat>
+                {myTrips[0] && (
+                  <HistoryStat>
+                    <HistoryNum>{new Date(myTrips[0].tripDate).toLocaleDateString("en-KE", { month: "short", year: "numeric" })}</HistoryNum>
+                    <HistoryLabel>last trip</HistoryLabel>
+                  </HistoryStat>
+                )}
+                {myReview && (
+                  <HistoryStat>
+                    <HistoryNum>{myReview.rating.toFixed(1)} ★</HistoryNum>
+                    <HistoryLabel>your rating</HistoryLabel>
+                  </HistoryStat>
+                )}
+              </HistoryMeta>
+              {myReview?.comment && (
+                <HistoryComment>
+                  <FormatQuoteIcon sx={{ fontSize: 14, color: colors.successGreen, mr: 0.5, transform: "scaleX(-1)", flexShrink: 0 }} />
+                  {myReview.comment}
+                </HistoryComment>
+              )}
+            </HistoryCard>
+          )}
+
           {/* Personal */}
           <Section>
-            <SectionLabel>About</SectionLabel>
+            <CollapsibleHeader onClick={() => setAboutOpen((v) => !v)}>
+              <SectionLabel style={{ margin: 0 }}>About</SectionLabel>
+              <ChevronIcon open={aboutOpen} />
+            </CollapsibleHeader>
+            <Collapse in={aboutOpen}>
             <TileGrid>
               <Tile><PhoneIcon sx={{ color: colors.skyBlue, fontSize: 18 }} /><span>{driver.phoneNumber}</span></Tile>
               <Tile><WcIcon sx={{ color: colors.skyBlue, fontSize: 18 }} /><span>{driver.sex}</span></Tile>
               {age && <Tile><CalendarTodayIcon sx={{ color: colors.skyBlue, fontSize: 18 }} /><span>{age} years old</span></Tile>}
             </TileGrid>
+            </Collapse>
           </Section>
 
           {/* Availability */}
           {driver.availability && (
             <Section>
-              <SectionLabel>Availability</SectionLabel>
+              <CollapsibleHeader onClick={() => setAvailOpen((v) => !v)}>
+                <SectionLabel style={{ margin: 0 }}>Availability</SectionLabel>
+                <ChevronIcon open={availOpen} />
+              </CollapsibleHeader>
+              <Collapse in={availOpen}>
               {driver.availability.days && driver.availability.days.length > 0 && (
                 <DayChips>
                   {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => {
@@ -255,13 +328,18 @@ export default function DriverDetailPage() {
               {driver.availability.schoolsServed && driver.availability.schoolsServed.length > 0 && (
                 <TagGroup label="Schools" items={driver.availability.schoolsServed} />
               )}
+              </Collapse>
             </Section>
           )}
 
           {/* Vehicles */}
           {allCars.length > 0 ? (
             <Section>
-              <SectionLabel>Vehicles ({allCars.length})</SectionLabel>
+              <CollapsibleHeader onClick={() => setVehiclesOpen((v) => !v)}>
+                <SectionLabel style={{ margin: 0 }}>Vehicles ({allCars.length})</SectionLabel>
+                <ChevronIcon open={vehiclesOpen} />
+              </CollapsibleHeader>
+              <Collapse in={vehiclesOpen}>
               <CarsStack>
                 {allCars.map((car) => (
                   <CarCard key={car._id} inactive={!car.isActive}>
@@ -283,11 +361,16 @@ export default function DriverDetailPage() {
                   </CarCard>
                 ))}
               </CarsStack>
+              </Collapse>
             </Section>
           ) : driver.carModel ? (
             // Fallback for legacy flat-field docs
             <Section>
-              <SectionLabel>Vehicle</SectionLabel>
+              <CollapsibleHeader onClick={() => setVehiclesOpen((v) => !v)}>
+                <SectionLabel style={{ margin: 0 }}>Vehicle</SectionLabel>
+                <ChevronIcon open={vehiclesOpen} />
+              </CollapsibleHeader>
+              <Collapse in={vehiclesOpen}>
               <CarCard inactive={false}>
                 <CarHeader>
                   <DirectionsCarIcon sx={{ color: colors.skyBlue, fontSize: 20 }} />
@@ -299,25 +382,35 @@ export default function DriverDetailPage() {
                 </CarMeta>
                 {driver.carPhoto && <CarPhoto src={driver.carPhoto} alt="Vehicle" />}
               </CarCard>
+              </Collapse>
             </Section>
           ) : null}
 
           {/* Schools Served */}
           <Section>
+            <CollapsibleHeader onClick={() => setSchoolsOpen((v) => !v)}>
+              <SectionLabel style={{ margin: 0 }}>Schools Served</SectionLabel>
+              <ChevronIcon open={schoolsOpen} />
+            </CollapsibleHeader>
+            <Collapse in={schoolsOpen}>
             <DriverSchoolsSection
               driverId={driver._id}
               initialSchools={driver.schools ?? []}
               editable={false}
             />
+            </Collapse>
           </Section>
 
           {/* Reviews */}
           <Section>
-            <SectionLabel>
-              Reviews
-              {reviewTotal > 0 && <ReviewCount>{reviewTotal}</ReviewCount>}
-            </SectionLabel>
-
+            <CollapsibleHeader onClick={() => setReviewsOpen((v) => !v)}>
+              <SectionLabel style={{ margin: 0 }}>
+                Reviews
+                {reviewTotal > 0 && <ReviewCount>{reviewTotal}</ReviewCount>}
+              </SectionLabel>
+              <ChevronIcon open={reviewsOpen} />
+            </CollapsibleHeader>
+            <Collapse in={reviewsOpen}>
             {reviews.length === 0 ? (
               <EmptyReviews>No reviews yet — be the first after a completed trip.</EmptyReviews>
             ) : (
@@ -368,6 +461,7 @@ export default function DriverDetailPage() {
                 </ReviewList>
               </>
             )}
+            </Collapse>
           </Section>
 
         </LeftCol>
@@ -438,7 +532,10 @@ const ContentGrid = styled.div`
 `;
 
 const LeftCol = styled.div`display: flex; flex-direction: column; gap: 16px;`;
-const RightCol = styled.div``;
+const RightCol = styled.div`
+  /* On mobile, the booking card appears ABOVE the detail sections */
+  @media (max-width: 820px) { order: -1; }
+`;
 
 const HeroCard = styled.div`
   background: ${colors.pureWhite};
@@ -612,5 +709,48 @@ const LoadingWrap = styled.div`
 
 const LoadingText = styled.p`
   font-size: 0.92rem; color: ${colors.mutedText}; font-style: italic; margin-top: 8px;
+`;
+
+/* ── Collapsible section header ── */
+const CollapsibleHeader = styled.div`
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; padding: 4px 0; margin-bottom: 4px;
+  user-select: none;
+  &:hover { opacity: 0.8; }
+`;
+
+const ChevronIcon = styled(ExpandMoreIcon)<{ open: boolean }>`
+  transition: transform 0.22s ease;
+  transform: ${({ open }) => open ? "rotate(180deg)" : "rotate(0deg)"};
+  color: ${colors.mutedText};
+  font-size: 20px !important;
+`;
+
+/* ── Your history with this driver ── */
+const HistoryCard = styled.div`
+  background: ${colors.successGreen}0d;
+  border: 1px solid ${colors.successGreen}33;
+  border-radius: 16px;
+  padding: 18px 20px;
+`;
+
+const HistoryTitle = styled.div`
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.2px; color: ${colors.successGreen}; margin-bottom: 12px;
+`;
+
+const HistoryMeta = styled.div`
+  display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 10px;
+`;
+
+const HistoryStat = styled.div`display: flex; flex-direction: column; align-items: flex-start;`;
+const HistoryNum = styled.span`font-size: 1.1rem; font-weight: 800; color: ${colors.deepNavy};`;
+const HistoryLabel = styled.span`font-size: 0.72rem; color: ${colors.mutedText}; margin-top: 1px;`;
+
+const HistoryComment = styled.div`
+  display: flex; align-items: flex-start;
+  font-size: 0.84rem; color: ${colors.slateCharcoal};
+  font-style: italic; line-height: 1.5;
+  border-top: 1px solid ${colors.successGreen}22; padding-top: 10px; margin-top: 4px;
 `;
 

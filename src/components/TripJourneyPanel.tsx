@@ -220,32 +220,42 @@ export default function TripJourneyPanel({ booking, onBookingUpdate }: Props) {
   if (status === "completed") {
     return (
       <Panel>
-        <PanelTitle>Quick Passenger Notes <Optional>(optional)</Optional></PanelTitle>
+        <NotesSectionHeader>
+          <PanelTitle style={{ margin: 0 }}>Post-Trip Notes</PanelTitle>
+          <NotesSectionHint>Optional · helps future drivers &amp; keeps parents informed</NotesSectionHint>
+        </NotesSectionHeader>
         {children.map((child) => (
           <ChildNoteCard key={child._id}>
             <ChildNoteHeader>
               <ChildNoteName>{child.name}</ChildNoteName>
-              <StarRow>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <StarBtn key={n} onClick={() => setRatings((r) => ({ ...r, [child._id]: n }))}>
-                    {ratings[child._id] >= n
-                      ? <StarIcon sx={{ fontSize: 20, color: "#F6AD55" }} />
-                      : <StarBorderIcon sx={{ fontSize: 20, color: colors.border }} />}
-                  </StarBtn>
-                ))}
-              </StarRow>
+              <StarGroup>
+                <StarRowLabel>Rating</StarRowLabel>
+                <StarRow aria-label={`Rate ${child.name}`}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <StarBtn key={n} onClick={() => setRatings((r) => ({ ...r, [child._id]: n }))}>
+                      {ratings[child._id] >= n
+                        ? <StarIcon sx={{ fontSize: 22, color: "#F6AD55" }} />
+                        : <StarBorderIcon sx={{ fontSize: 22, color: "#CBD5E0" }} />}
+                    </StarBtn>
+                  ))}
+                  {ratings[child._id] > 0 && (
+                    <RatingLabel>{ratings[child._id]}.0</RatingLabel>
+                  )}
+                </StarRow>
+              </StarGroup>
             </ChildNoteHeader>
             <NoteInput
-              placeholder="Any notes? (behaviour, items left behind…)"
+              placeholder="e.g. well-behaved, left water bottle in car…"
               value={notes[child._id] ?? ""}
               onChange={(e) => setNotes((n) => ({ ...n, [child._id]: e.target.value }))}
+              maxLength={300}
             />
           </ChildNoteCard>
         ))}
         <NoteActions>
           <SkipBtn onClick={() => setNotesSaved(true)}>Skip</SkipBtn>
           <SaveNotesBtn onClick={handleSaveNotes} disabled={savingNotes}>
-            {savingNotes ? "Saving…" : "Save Notes"}
+            {savingNotes ? "Saving…" : "Save"}
           </SaveNotesBtn>
         </NoteActions>
       </Panel>
@@ -349,10 +359,6 @@ const PanelTitle = styled.p`
   letter-spacing: 1px; color: ${colors.mutedText}; margin: 0;
 `;
 
-const Optional = styled.span`
-  font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 0.7rem;
-`;
-
 /* Arrive */
 const ArriveBtn = styled.button`
   display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -433,23 +439,40 @@ const CompleteBadge = styled.div`
 `;
 
 /* Notes */
+const NotesSectionHeader = styled.div`
+  display: flex; flex-direction: column; gap: 2px;
+`;
+const NotesSectionHint = styled.p`
+  font-size: 0.73rem; color: ${colors.mutedText}; margin: 0; font-style: italic;
+`;
+
 const ChildNoteCard = styled.div`
   background: ${colors.lightBg}; border: 1px solid ${colors.border};
   border-radius: 12px; padding: 14px;
-  display: flex; flex-direction: column; gap: 8px;
+  display: flex; flex-direction: column; gap: 10px;
 `;
 
-const ChildNoteHeader = styled.div`display: flex; align-items: center; justify-content: space-between;`;
-const ChildNoteName = styled.p`font-size: 0.9rem; font-weight: 700; color: ${colors.deepNavy}; margin: 0;`;
+const ChildNoteHeader = styled.div`
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+`;
+const ChildNoteName = styled.p`font-size: 0.92rem; font-weight: 700; color: ${colors.deepNavy}; margin: 0;`;
 
-const StarRow = styled.div`display: flex; gap: 2px;`;
-const StarBtn = styled.button`background: none; border: none; cursor: pointer; padding: 0;`;
+const StarGroup = styled.div`display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0;`;
+const StarRowLabel = styled.span`font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: ${colors.mutedText};`;
+const StarRow = styled.div`display: flex; gap: 1px; align-items: center;`;
+const StarBtn = styled.button`background: none; border: none; cursor: pointer; padding: 1px; line-height: 0;`;
+const RatingLabel = styled.span`
+  font-size: 0.75rem; font-weight: 700; color: #B7791F; margin-left: 5px;
+`;
 
 const NoteInput = styled.textarea`
-  width: 100%; border: 1px solid ${colors.border}; border-radius: 8px;
+  width: 100%; box-sizing: border-box;
+  border: 1px solid ${colors.border}; border-radius: 8px;
   padding: 8px 10px; font-size: 0.82rem; color: ${colors.deepNavy};
   resize: none; font-family: inherit; background: ${colors.pureWhite};
+  min-height: 60px; line-height: 1.5;
   &:focus { outline: none; border-color: ${colors.skyBlue}; }
+  &::placeholder { color: ${colors.mutedText}; }
 `;
 
 const NoteActions = styled.div`display: flex; gap: 10px; justify-content: flex-end;`;

@@ -190,6 +190,11 @@ export async function GET(req: NextRequest) {
 
     if (user.userType === "parent") {
       baseFilter.parent = new mongoose.Types.ObjectId(user.id);
+      // Optional: parent can filter to bookings with a specific driver (e.g. trip history on driver profile)
+      const driverIdParam = searchParams.get("driverId");
+      if (driverIdParam && mongoose.Types.ObjectId.isValid(driverIdParam)) {
+        baseFilter.driver = new mongoose.Types.ObjectId(driverIdParam);
+      }
     } else if (user.userType === "driver") {
       baseFilter.driver = new mongoose.Types.ObjectId(user.id);
     } else {
