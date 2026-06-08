@@ -70,15 +70,16 @@ export default function DriversPage() {
       <PageHeader>
         <div>
           <Typography variant="h4" sx={{ fontWeight: 700, color: colors.deepNavy, mb: 0.5 }}>
-            Available Drivers
+            Find a Driver
           </Typography>
           <Typography variant="body2" sx={{ color: colors.mutedText }}>
-            Choose a verified driver for your child&apos;s school commute
+            All drivers are background-checked and rated by parents.
+            Pick one that serves your child&apos;s school.
           </Typography>
         </div>
         <SearchBadge>
           <SearchIcon sx={{ fontSize: 18, mr: 1, color: colors.mutedText }} />
-          <span>{loading ? "Looking…" : drivers.length > 0 ? `${drivers.length} driver${drivers.length !== 1 ? "s" : ""}` : "No drivers found"}</span>
+          <span>{loading ? "Searching…" : drivers.length > 0 ? `${drivers.length} driver${drivers.length !== 1 ? "s" : ""} found` : "No matches"}</span>
         </SearchBadge>
       </PageHeader>
 

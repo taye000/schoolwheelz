@@ -133,15 +133,6 @@ export default function ProfilePage() {
     fetchUser();
   }, []);
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setDriverLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => {}
-      );
-    }
-  }, []);
-
   const startEditing = () => {
     if (!user) return;
     setEditData({
