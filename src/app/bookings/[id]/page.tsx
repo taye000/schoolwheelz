@@ -16,6 +16,7 @@ import {
   DialogActions,
   TextField,
   Collapse,
+  Tooltip,
 } from "@mui/material";
 import styled, { keyframes } from "styled-components";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -32,6 +33,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import DirectionsIcon from "@mui/icons-material/Directions";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
 import TripJourneyPanel from "@/components/TripJourneyPanel";
@@ -106,6 +108,34 @@ const DIRECTION_CONFIG = {
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
+
+/**
+ * Opens the best maps app available on the current device.
+ * Android: triggers the native intent chooser (geo: URI).
+ * iOS: opens Apple Maps (user can switch from there).
+ * Desktop: opens Google Maps directions in a new tab.
+ */
+function openMapsNavigation(lat: number, lng: number, label: string) {
+  const ua = navigator.userAgent;
+  const q  = encodeURIComponent(label);
+  let url: string;
+  if (/Android/i.test(ua)) {
+    // geo: URI → Android shows app chooser (Google Maps, Waze, HERE, etc.)
+    url = `geo:${lat},${lng}?q=${lat},${lng}(${q})`;
+  } else if (/iPad|iPhone|iPod/i.test(ua)) {
+    // maps: URI → opens Apple Maps; user can choose Google Maps from share sheet
+    url = `maps://maps.apple.com/?daddr=${lat},${lng}&q=${q}`;
+  } else {
+    // Desktop → Google Maps directions in new tab
+    url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  }
+  // Use href for app deep links; window.open for web URLs
+  if (url.startsWith("http")) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  } else {
+    window.location.href = url;
+  }
 }
 
 function formatDate(iso: string) {
@@ -583,16 +613,46 @@ export default function BookingDetailPage() {
               {(c.pickupLocation || c.dropoffLocation) && (
                 <ChildLocMeta>
                   {c.pickupLocation && (
-                    <LocItem>
-                      <span>🏠</span>
-                      <span>Pick-up: {c.pickupLocation.lat.toFixed(5)}, {c.pickupLocation.lng.toFixed(5)}</span>
-                    </LocItem>
+                    <Tooltip title="Tap to navigate with your maps app" placement="top">
+                      <LocLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openMapsNavigation(
+                            c.pickupLocation!.lat,
+                            c.pickupLocation!.lng,
+                            `${c.name} pickup`
+                          );
+                        }}
+                      >
+                        <span>🏠</span>
+                        <LocRouteLabel>Pick-up</LocRouteLabel>
+                        <LocCoords>{c.pickupLocation.lat.toFixed(5)}, {c.pickupLocation.lng.toFixed(5)}</LocCoords>
+                        <DirectionsIcon sx={{ fontSize: 13, flexShrink: 0 }} />
+                      </LocLink>
+                    </Tooltip>
                   )}
                   {c.dropoffLocation && (
-                    <LocItem>
-                      <span>🏫</span>
-                      <span>Drop-off ({c.school}): {c.dropoffLocation.lat.toFixed(5)}, {c.dropoffLocation.lng.toFixed(5)}</span>
-                    </LocItem>
+                    <Tooltip title="Tap to navigate with your maps app" placement="top">
+                      <LocLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openMapsNavigation(
+                            c.dropoffLocation!.lat,
+                            c.dropoffLocation!.lng,
+                            `${c.name} drop-off at ${c.school}`
+                          );
+                        }}
+                      >
+                        <span>🏫</span>
+                        <LocRouteLabel>Drop-off</LocRouteLabel>
+                        <LocCoords>{c.dropoffLocation.lat.toFixed(5)}, {c.dropoffLocation.lng.toFixed(5)}</LocCoords>
+                        <DirectionsIcon sx={{ fontSize: 13, flexShrink: 0 }} />
+                      </LocLink>
+                    </Tooltip>
                   )}
                 </ChildLocMeta>
               )}
@@ -1115,19 +1175,35 @@ const ChildMeta = styled.p`
 `;
 
 const ChildLocMeta = styled.div`
-  margin-top: 6px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
 `;
 
-const LocItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.75rem;
-  color: ${colors.mutedText};
-  font-family: monospace;
+/* Clickable map navigation link */
+const LocLink = styled.a`
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px 5px 8px; border-radius: 8px;
+  border: 1px solid ${colors.skyBlue}33;
+  background: ${colors.skyBlue}08;
+  color: ${colors.skyBlue}; text-decoration: none;
+  cursor: pointer; transition: all 0.15s;
+  max-width: 100%; overflow: hidden;
+  &:hover, &:focus {
+    background: ${colors.skyBlue}18;
+    border-color: ${colors.skyBlue}66;
+    text-decoration: none;
+    outline: none;
+  }
+  &:active { transform: scale(0.97); }
+`;
+const LocRouteLabel = styled.span`
+  font-size: 0.73rem; font-weight: 700; white-space: nowrap; flex-shrink: 0;
+`;
+const LocCoords = styled.span`
+  font-family: monospace; font-size: 0.71rem; opacity: 0.8;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 `;
 
 const CancelRow = styled.div`
