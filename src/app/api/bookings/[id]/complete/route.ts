@@ -56,12 +56,34 @@ export async function POST(
     });
 
     booking.status = "completed";
-    booking.tracking = {
-      ...(booking.tracking ?? {}),
-      isTrackingEnabled: false,
-      lastUpdated: now,
-    };
+    // Save status + children changes (don't touch tracking here)
     await booking.save();
+
+    // Parse optional final GPS position sent by the client
+    const body = (await req.json().catch(() => ({}))) as {
+      lat?: number;
+      lng?: number;
+    };
+    const hasLocation =
+      typeof body.lat === "number" && typeof body.lng === "number";
+
+    // Use $set dot-notation so we never touch tracking.currentLocation when absent
+    await Booking.findByIdAndUpdate(params.id, {
+      $set: {
+        "tracking.isTrackingEnabled": false,
+        "tracking.lastUpdated": now,
+        ...(hasLocation && {
+          "tracking.currentLocation": {
+            type: "Point",
+            coordinates: [body.lng, body.lat],
+          },
+          "tracking.finalLocation": {
+            type: "Point",
+            coordinates: [body.lng, body.lat],
+          },
+        }),
+      },
+    });
 
     await Driver.findByIdAndUpdate(user.id, {
       $inc: { completedTrips: 1, totalTrips: 1 },

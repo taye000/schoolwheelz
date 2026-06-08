@@ -148,9 +148,10 @@ export default function BookingsPage() {
 
   const isDriver = user?.userType === "driver";
   const isParent = user?.userType === "parent";
-  const acceptedCount  = bookings.filter((b) => b.status === "accepted").length;
-  const pendingCount   = bookings.filter((b) => b.status === "pending").length;
-  const completedCount = bookings.filter((b) => b.status === "completed").length;
+  const acceptedCount    = bookings.filter((b) => b.status === "accepted").length;
+  const pendingCount     = bookings.filter((b) => b.status === "pending").length;
+  const inProgressCount  = bookings.filter((b) => b.status === "in_progress").length;
+  const completedCount   = bookings.filter((b) => b.status === "completed").length;
 
   if (loading && page === 1 && !hasFilters)
     return (
@@ -184,6 +185,7 @@ export default function BookingsPage() {
             <StatRow>
               <StatPill pending><HourglassEmptyIcon sx={{ fontSize: 13 }} />{pendingCount} pending</StatPill>
               <StatPill accepted><CheckCircleOutlineIcon sx={{ fontSize: 13 }} />{acceptedCount} accepted</StatPill>
+              {inProgressCount > 0 && <StatPill active><RouteIcon sx={{ fontSize: 13 }} />{inProgressCount} live</StatPill>}
               <StatPill completed><RouteIcon sx={{ fontSize: 13 }} />{completedCount} completed</StatPill>
             </StatRow>
           </HeroLeft>
@@ -372,11 +374,19 @@ const Greeting = styled.div`font-size: 0.82rem; color: rgba(255,255,255,0.65); f
 const HeroTitle = styled.h1`margin: 0; font-size: 1.55rem; font-weight: 800; color: #fff; letter-spacing: -0.4px;`;
 const HeroSub = styled.p`margin: 0; font-size: 0.8rem; color: rgba(255,255,255,0.55); max-width: 300px; line-height: 1.45;`;
 const StatRow = styled.div`display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px;`;
-const StatPill = styled.div<{ pending?: boolean; accepted?: boolean; completed?: boolean }>`
+const StatPill = styled.div<{ pending?: boolean; accepted?: boolean; active?: boolean; completed?: boolean }>`
   display: flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 600;
   padding: 4px 10px; border-radius: 50px;
-  background: ${(p) => p.accepted ? "rgba(154,230,180,0.15)" : p.completed ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.12)"};
-  color: ${(p) => p.accepted ? "#9AE6B4" : p.completed ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.8)"};
+  background: ${(p) =>
+    p.accepted  ? "rgba(154,230,180,0.15)" :
+    p.active    ? "rgba(144,205,244,0.2)"  :
+    p.completed ? "rgba(255,255,255,0.08)" :
+                  "rgba(255,255,255,0.12)"};
+  color: ${(p) =>
+    p.accepted  ? "#9AE6B4" :
+    p.active    ? "#90CDF4" :
+    p.completed ? "rgba(255,255,255,0.5)" :
+                  "rgba(255,255,255,0.8)"};
 `;
 const HeroAction = styled.button`
   display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.13);

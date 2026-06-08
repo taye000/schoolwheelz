@@ -155,7 +155,25 @@ export default function TripJourneyPanel({ booking, onBookingUpdate }: Props) {
   const handleEndTrip = async () => {
     setEnding(true);
     try {
-      await axios.post(`/api/bookings/${bookingId}/complete`, {}, { withCredentials: true });
+      // Capture driver's current GPS position at the moment of trip completion
+      let finalLocation: { lat: number; lng: number } | undefined;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 6000,
+          })
+        );
+        finalLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch {
+        // GPS unavailable — proceed without location, don't block trip completion
+      }
+
+      await axios.post(
+        `/api/bookings/${bookingId}/complete`,
+        finalLocation ? { lat: finalLocation.lat, lng: finalLocation.lng } : {},
+        { withCredentials: true },
+      );
       toast.success("Trip completed! Parent notified.");
       onBookingUpdate({ status: "completed" });
       setConfirmEnd(false);
