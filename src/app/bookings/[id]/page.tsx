@@ -15,6 +15,7 @@ import {
   DialogContentText,
   DialogActions,
   TextField,
+  Collapse,
 } from "@mui/material";
 import styled, { keyframes } from "styled-components";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -30,6 +31,7 @@ import EventIcon from "@mui/icons-material/Event";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
 import TripJourneyPanel from "@/components/TripJourneyPanel";
@@ -42,6 +44,8 @@ interface IChild {
   age: number;
   school: string;
   gender: string;
+  pickedUp?: boolean;
+  droppedOff?: boolean;
   pickupLocation?: { lat: number; lng: number };
   dropoffLocation?: { lat: number; lng: number };
 }
@@ -143,6 +147,11 @@ export default function BookingDetailPage() {
   // Driver: start trip
   const [starting, setStarting] = useState(false);
 
+  // Collapsible detail sections — start open; auto-close for drivers (focus on action panel)
+  const [tripDetailsOpen, setTripDetailsOpen] = useState(true);
+  const [peopleOpen, setPeopleOpen]           = useState(true);
+  const [childrenOpen, setChildrenOpen]       = useState(true);
+
   const handleStart = async () => {
     setStarting(true);
     try {
@@ -175,6 +184,15 @@ export default function BookingDetailPage() {
   const handleBookingUpdate = (patch: Partial<IBooking>) => {
     setBooking((b) => b ? { ...b, ...patch } : b);
   };
+
+  // Collapse detail sections for drivers so the action panel is the first thing they see
+  useEffect(() => {
+    if (userType === "driver") {
+      setTripDetailsOpen(false);
+      setPeopleOpen(false);
+      setChildrenOpen(false);
+    }
+  }, [userType]);
 
   const handleCancel = async () => {
     setCanceling(true);
@@ -251,6 +269,13 @@ export default function BookingDetailPage() {
   const isRecurring = booking.bookingType === "recurring";
   const stepIndex   = STATUS_STEPS.indexOf(booking.status);
 
+  // Driver action panel counters (updates reactively as TripJourneyPanel patches booking.children)
+  const dapTotal      = booking.children.length;
+  const dapPickedUp   = booking.children.filter((c) => c.pickedUp).length;
+  const dapDroppedOff = booking.children.filter((c) => c.droppedOff).length;
+  const dapPct        = dapTotal > 0 ? Math.round((dapDroppedOff / dapTotal) * 100) : 0;
+  const dapSchools    = Array.from(new Set(booking.children.map((c) => c.school).filter(Boolean)));
+
   const isDriver     = userType === "driver";
   const isParent     = userType === "parent";
   const canAcceptReject = isDriver && booking.status === "pending";
@@ -261,8 +286,8 @@ export default function BookingDetailPage() {
   // Show parent tracking/rating for parent on active bookings
   const showParentLive = isParent && ["accepted", "in_progress", "completed"].includes(booking.status);
 
-  // Sticky bar shows the single most-important CTA for current stage
-  const hasStickyBar = canAcceptReject || canStart || canCancel;
+  // Sticky bar: only for parent pending cancel (driver actions live in the top action panel)
+  const hasStickyBar = canCancel;
 
   return (
     <PageWrapper hasStickyBar={hasStickyBar}>
@@ -271,38 +296,83 @@ export default function BookingDetailPage() {
         Back to Bookings
       </BackBtn>
 
-      {/* ── Stage context banner (top of page, below back btn) ── */}
-      {canAcceptReject && (
-        <StageBanner variant="request">
-          <StageBannerIcon>🔔</StageBannerIcon>
-          <StageBannerBody>
-            <StageBannerTitle>New Trip Request</StageBannerTitle>
-            <StageBannerSub>
-              {booking.parent?.fullName} wants to book {booking.seatsBooked} seat{booking.seatsBooked !== 1 ? "s" : ""}.
-              Review the details below and respond at the bottom.
-            </StageBannerSub>
-          </StageBannerBody>
-        </StageBanner>
+      {/* ── Driver Action Panel — primary CTA at the top ── */}
+      {isDriver && (
+        <DriverActionPanel status={booking.status}>
+          {/* PENDING → review and respond */}
+          {canAcceptReject && (
+            <>
+              <DAPTagRow><DAPTag variant="pending">🔔 New Request</DAPTag></DAPTagRow>
+              <DAPTitle>{booking.parent?.fullName ?? "Parent"} wants to book {booking.seatsBooked} seat{booking.seatsBooked !== 1 ? "s" : ""}</DAPTitle>
+              <DAPSub>{formatDate(booking.tripDate)}{dapSchools.length > 0 && <> · {dapSchools.join(", ")}</>}</DAPSub>
+              <DAPActions>
+                <DAPDeclineBtn onClick={() => setRejectOpen(true)} disabled={accepting}>
+                  <CancelIcon sx={{ fontSize: 16 }} /> Decline
+                </DAPDeclineBtn>
+                <DAPAcceptBtn onClick={handleAccept} disabled={accepting}>
+                  <CheckCircleIcon sx={{ fontSize: 16 }} />
+                  {accepting ? "Accepting…" : "Accept Trip"}
+                </DAPAcceptBtn>
+              </DAPActions>
+            </>
+          )}
+
+          {/* ACCEPTED → start the trip */}
+          {canStart && (
+            <>
+              <DAPTagRow><DAPTag variant="ready">🚦 Ready to Depart</DAPTag></DAPTagRow>
+              <DAPTitle>Trip for {booking.parent?.fullName ?? "Parent"}</DAPTitle>
+              <DAPSub>{formatDate(booking.tripDate)} · {booking.seatsBooked} seat{booking.seatsBooked !== 1 ? "s" : ""}</DAPSub>
+              <DAPStartBtn onClick={handleStart} disabled={starting}>
+                {starting ? <CircularProgress size={20} sx={{ color: "#fff" }} /> : <span>🚌</span>}
+                {starting ? "Starting…" : "Start Trip — Notify Parent"}
+              </DAPStartBtn>
+            </>
+          )}
+
+          {/* IN PROGRESS → live child counter + progress bar */}
+          {booking.status === "in_progress" && (
+            <>
+              <DAPTagRow><DAPTag variant="active">🏃 Trip Live</DAPTag></DAPTagRow>
+              <DAPCounterRow>
+                <DAPCounter>
+                  <DAPCounterNum>{dapPickedUp}<DAPCounterTotal>/{dapTotal}</DAPCounterTotal></DAPCounterNum>
+                  <DAPCounterLabel>Picked Up</DAPCounterLabel>
+                </DAPCounter>
+                <DAPCounterDivider />
+                <DAPCounter>
+                  <DAPCounterNum>{dapDroppedOff}<DAPCounterTotal>/{dapTotal}</DAPCounterTotal></DAPCounterNum>
+                  <DAPCounterLabel>Dropped Off</DAPCounterLabel>
+                </DAPCounter>
+              </DAPCounterRow>
+              <DAPProgressTrack>
+                <DAPProgressFill pct={dapPct} />
+              </DAPProgressTrack>
+              <DAPSub>{dapPct}% complete · Use the Journey panel below to mark individual children</DAPSub>
+            </>
+          )}
+
+          {/* COMPLETED → summary */}
+          {booking.status === "completed" && (
+            <>
+              <DAPTagRow><DAPTag variant="done">✅ Trip Complete</DAPTag></DAPTagRow>
+              <DAPTitle>All {dapTotal} child{dapTotal !== 1 ? "ren" : ""} delivered safely</DAPTitle>
+              <DAPSub>Great work! This trip has been recorded as completed.</DAPSub>
+            </>
+          )}
+
+          {/* CANCELED / REJECTED */}
+          {["canceled", "rejected"].includes(booking.status) && (
+            <>
+              <DAPTagRow><DAPTag variant="canceled">❌ {booking.status === "rejected" ? "Rejected" : "Cancelled"}</DAPTag></DAPTagRow>
+              <DAPSub>This booking was not completed.</DAPSub>
+            </>
+          )}
+        </DriverActionPanel>
       )}
-      {canStart && (
-        <StageBanner variant="ready">
-          <StageBannerIcon>🚦</StageBannerIcon>
-          <StageBannerBody>
-            <StageBannerTitle>Ready to go!</StageBannerTitle>
-            <StageBannerSub>Tap &ldquo;Start Trip&rdquo; below when you depart to notify the parent.</StageBannerSub>
-          </StageBannerBody>
-        </StageBanner>
-      )}
-      {isDriver && booking.status === "in_progress" && (
-        <StageBanner variant="active">
-          <StageBannerIcon>🏃</StageBannerIcon>
-          <StageBannerBody>
-            <StageBannerTitle>Trip is live</StageBannerTitle>
-            <StageBannerSub>Mark each child as picked up and dropped off using the Journey panel below.</StageBannerSub>
-          </StageBannerBody>
-        </StageBanner>
-      )}
-      {booking.status === "completed" && (
+
+      {/* ── Stage banners for parent only ── */}
+      {isParent && booking.status === "completed" && (
         <StageBanner variant="done">
           <StageBannerIcon>✅</StageBannerIcon>
           <StageBannerBody>
@@ -311,14 +381,14 @@ export default function BookingDetailPage() {
           </StageBannerBody>
         </StageBanner>
       )}
-      {["canceled", "rejected"].includes(booking.status) && (
+      {isParent && ["canceled", "rejected"].includes(booking.status) && (
         <StageBanner variant="canceled">
           <StageBannerIcon>❌</StageBannerIcon>
           <StageBannerBody>
             <StageBannerTitle>Booking {booking.status}</StageBannerTitle>
-            <StageBannerSub>{isParent ? "Browse drivers to make a new booking." : "This booking was not completed."}</StageBannerSub>
+            <StageBannerSub>Browse drivers to make a new booking.</StageBannerSub>
           </StageBannerBody>
-          {isParent && <Button size="small" variant="outlined" onClick={() => router.push("/drivers")} sx={{ borderRadius: "50px", flexShrink: 0, alignSelf: "center" }}>Browse Drivers</Button>}
+          <Button size="small" variant="outlined" onClick={() => router.push("/drivers")} sx={{ borderRadius: "50px", flexShrink: 0, alignSelf: "center" }}>Browse Drivers</Button>
         </StageBanner>
       )}
 
@@ -363,8 +433,11 @@ export default function BookingDetailPage() {
         <Divider sx={{ my: 3, mt: booking.status !== "canceled" ? 5 : 3 }} />
 
         {/* ── Trip Details ── */}
-        <SectionTitle>Trip Details</SectionTitle>
-
+        <CollapsibleHeader onClick={() => setTripDetailsOpen((v) => !v)}>
+          <SectionTitle style={{ margin: 0 }}>Trip Details</SectionTitle>
+          <ExpandMoreIcon sx={{ fontSize: 19, color: colors.mutedText, transform: tripDetailsOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+        </CollapsibleHeader>
+        <Collapse in={tripDetailsOpen}>
         <DirectionRow>
           {dirCfg.icon}
           <DirectionText>{dirCfg.label}</DirectionText>
@@ -448,11 +521,16 @@ export default function BookingDetailPage() {
             )}
           </OneTimeGrid>
         )}
+        </Collapse>
 
         <Divider sx={{ my: 3 }} />
 
         {/* ── People ── */}
-        <SectionTitle>People</SectionTitle>
+        <CollapsibleHeader onClick={() => setPeopleOpen((v) => !v)}>
+          <SectionTitle style={{ margin: 0 }}>People</SectionTitle>
+          <ExpandMoreIcon sx={{ fontSize: 19, color: colors.mutedText, transform: peopleOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+        </CollapsibleHeader>
+        <Collapse in={peopleOpen}>
         <PeopleGrid>
           <PersonCard>
             <PersonCardHeader>
@@ -482,17 +560,21 @@ export default function BookingDetailPage() {
             )}
           </PersonCard>
         </PeopleGrid>
+        </Collapse>
 
         <Divider sx={{ my: 3 }} />
 
         {/* ── Children ── */}
-        <SectionHeader>
-          <ChildCareIcon sx={{ color: colors.mintCream, mr: 1 }} />
-          <Typography variant="h6" sx={{ fontWeight: 600, color: colors.deepNavy }}>
-            Children ({booking.children.length}) · {booking.seatsBooked} seat{booking.seatsBooked !== 1 ? "s" : ""}
-          </Typography>
-        </SectionHeader>
-
+        <CollapsibleHeader onClick={() => setChildrenOpen((v) => !v)}>
+          <SectionHeader style={{ margin: 0 }}>
+            <ChildCareIcon sx={{ color: colors.mintCream, mr: 1 }} />
+            <Typography variant="h6" sx={{ fontWeight: 600, color: colors.deepNavy }}>
+              Children ({booking.children.length}) · {booking.seatsBooked} seat{booking.seatsBooked !== 1 ? "s" : ""}
+            </Typography>
+          </SectionHeader>
+          <ExpandMoreIcon sx={{ fontSize: 19, color: colors.mutedText, transform: childrenOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }} />
+        </CollapsibleHeader>
+        <Collapse in={childrenOpen}>
         <ChildrenList>
           {booking.children.map((c, i) => (
             <ChildItem key={i}>
@@ -518,11 +600,12 @@ export default function BookingDetailPage() {
           ))}
         </ChildrenList>
 
-        {/* ── Route map (always shown when coords exist; especially useful for driver before accepting) ── */}
+        {/* ── Route map (shown inside the children section) ── */}
         <BookingRouteMap
           children={booking.children}
           direction={booking.direction}
         />
+        </Collapse>
 
         {/* ── Driver: trip journey panel ── */}
         {showDriverJourney && (
@@ -589,60 +672,19 @@ export default function BookingDetailPage() {
           </>
         )}
 
-        {/* ── Driver: inline accept/reject also in card body (for desktop / readers) ── */}
-        {canAcceptReject && (
-          <>
-            <Divider sx={{ mt: 3 }} />
-            <DriverActionsRow>
-              <RejectBtn onClick={() => setRejectOpen(true)} disabled={accepting}>
-                <CancelIcon sx={{ fontSize: 17 }} />
-                Decline Trip
-              </RejectBtn>
-              <AcceptBtn onClick={handleAccept} disabled={accepting}>
-                <CheckCircleIcon sx={{ fontSize: 17 }} />
-                {accepting ? "Accepting…" : "Accept Trip"}
-              </AcceptBtn>
-            </DriverActionsRow>
-          </>
-        )}
       </Card>
 
       {/* ── Dialogs ── */}
 
-      {/* ── Sticky bottom action bar ── */}
+      {/* ── Sticky bottom action bar (parent cancel only) ── */}
       {hasStickyBar && (
         <StickyBar>
-          {canAcceptReject && (
-            <StickyBarInner>
-              <StickyHint>Respond to this request</StickyHint>
-              <StickyBtnRow>
-                <StickyDeclineBtn onClick={() => setRejectOpen(true)} disabled={accepting}>
-                  <CancelIcon sx={{ fontSize: 16 }} /> Decline
-                </StickyDeclineBtn>
-                <StickyAcceptBtn onClick={handleAccept} disabled={accepting}>
-                  <CheckCircleIcon sx={{ fontSize: 16 }} />
-                  {accepting ? "Accepting…" : "Accept Trip"}
-                </StickyAcceptBtn>
-              </StickyBtnRow>
-            </StickyBarInner>
-          )}
-          {canStart && (
-            <StickyBarInner>
-              <StickyHint>Tap when you set off towards the first pickup</StickyHint>
-              <StickyStartBtn onClick={handleStart} disabled={starting}>
-                {starting ? <CircularProgress size={18} sx={{ color: "#fff", mr: 1 }} /> : "🚌"}
-                &nbsp;{starting ? "Starting…" : "Start Trip — Notify Parent"}
-              </StickyStartBtn>
-            </StickyBarInner>
-          )}
-          {canCancel && (
-            <StickyBarInner>
-              <StickyHint>Only pending bookings can be cancelled</StickyHint>
-              <StickyCancelBtn onClick={() => setCancelOpen(true)}>
-                Cancel Booking
-              </StickyCancelBtn>
-            </StickyBarInner>
-          )}
+          <StickyBarInner>
+            <StickyHint>Only pending bookings can be cancelled</StickyHint>
+            <StickyCancelBtn onClick={() => setCancelOpen(true)}>
+              Cancel Booking
+            </StickyCancelBtn>
+          </StickyBarInner>
         </StickyBar>
       )}
 
@@ -704,12 +746,121 @@ export default function BookingDetailPage() {
   );
 }
 
-/* ── Styled components ── */
-
+/* ── Animations ── */
 const slideUp = keyframes`
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 `;
+
+/* ── Driver Action Panel ── */
+const DAP_BG: Record<string, string> = {
+  pending:     "#FFFBEB",
+  accepted:    "#ECFDF5",
+  in_progress: "#EBF8FF",
+  completed:   "#F0FDF4",
+  canceled:    "#FFF5F5",
+  rejected:    "#FFF5F5",
+};
+const DAP_BORDER: Record<string, string> = {
+  pending:     "#FCD34D",
+  accepted:    "#6EE7B7",
+  in_progress: "#93C5FD",
+  completed:   "#9AE6B4",
+  canceled:    "#FEB2B2",
+  rejected:    "#FEB2B2",
+};
+const DAP_TAG_STYLE: Record<string, { bg: string; color: string }> = {
+  pending:  { bg: "#FEF3C7", color: "#92400E" },
+  ready:    { bg: "#D1FAE5", color: "#065F46" },
+  active:   { bg: "#DBEAFE", color: "#1E40AF" },
+  done:     { bg: "#D1FAE5", color: "#065F46" },
+  canceled: { bg: "#FEE2E2", color: "#991B1B" },
+};
+const DriverActionPanel = styled.div<{ status: string }>`
+  border-radius: 20px; padding: 22px 24px; margin-bottom: 20px;
+  border: 1.5px solid ${(p) => DAP_BORDER[p.status] ?? colors.border};
+  background: ${(p) => DAP_BG[p.status] ?? colors.lightBg};
+  animation: ${slideUp} 0.35s ease both;
+`;
+const DAPTagRow = styled.div`margin-bottom: 8px;`;
+const DAPTag = styled.span<{ variant: string }>`
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 50px;
+  font-size: 0.73rem; font-weight: 700; letter-spacing: 0.4px;
+  background: ${(p) => DAP_TAG_STYLE[p.variant]?.bg ?? colors.lightBg};
+  color: ${(p) => DAP_TAG_STYLE[p.variant]?.color ?? colors.mutedText};
+`;
+const DAPTitle = styled.p`
+  font-size: 1.05rem; font-weight: 700; color: ${colors.deepNavy};
+  margin: 0 0 4px; line-height: 1.3;
+`;
+const DAPSub = styled.p`
+  font-size: 0.82rem; color: ${colors.mutedText};
+  margin: 0 0 4px; line-height: 1.45;
+`;
+const DAPActions = styled.div`display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px;`;
+const DAPDeclineBtn = styled.button`
+  display: flex; align-items: center; gap: 6px; padding: 10px 20px;
+  border-radius: 50px; font-size: 0.88rem; font-weight: 700; cursor: pointer;
+  background: transparent; border: 1.5px solid ${colors.errorRed}44; color: ${colors.errorRed};
+  transition: all 0.18s;
+  &:hover:not(:disabled) { background: ${colors.errorRed}; color: #fff; border-color: ${colors.errorRed}; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+`;
+const DAPAcceptBtn = styled.button`
+  display: flex; align-items: center; gap: 6px; padding: 10px 22px;
+  border-radius: 50px; font-size: 0.88rem; font-weight: 800; cursor: pointer; border: none;
+  background: ${colors.successGreen}; color: #fff;
+  box-shadow: 0 3px 10px ${colors.successGreen}44;
+  transition: all 0.18s;
+  &:hover:not(:disabled) { background: #276749; transform: translateY(-1px); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+`;
+const DAPStartBtn = styled.button`
+  display: flex; align-items: center; gap: 8px; padding: 13px 28px;
+  border-radius: 50px; font-size: 0.95rem; font-weight: 800; cursor: pointer; border: none;
+  background: linear-gradient(135deg, ${colors.deepNavy}, #2c508a); color: #fff;
+  width: 100%; justify-content: center; margin-top: 12px;
+  box-shadow: 0 4px 16px rgba(26,54,93,0.22);
+  transition: all 0.18s;
+  &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(26,54,93,0.32); }
+  &:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+`;
+const DAPCounterRow = styled.div`
+  display: flex; align-items: stretch; gap: 0; margin: 12px 0 0;
+`;
+const DAPCounter = styled.div`
+  flex: 1; text-align: center; padding: 14px 10px;
+  background: ${colors.pureWhite}; border: 1px solid ${colors.border}; border-radius: 12px;
+`;
+const DAPCounterNum = styled.div`
+  font-size: 2.1rem; font-weight: 800; color: ${colors.deepNavy}; line-height: 1;
+`;
+const DAPCounterTotal = styled.span`
+  font-size: 1.15rem; font-weight: 400; color: ${colors.mutedText};
+`;
+const DAPCounterLabel = styled.div`
+  font-size: 0.67rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: ${colors.mutedText}; margin-top: 5px;
+`;
+const DAPCounterDivider = styled.div`width: 12px; flex-shrink: 0;`;
+const DAPProgressTrack = styled.div`
+  height: 7px; border-radius: 50px; background: ${colors.border};
+  overflow: hidden; margin: 14px 0 8px;
+`;
+const DAPProgressFill = styled.div<{ pct: number }>`
+  height: 100%; border-radius: 50px; width: ${(p) => p.pct}%;
+  background: ${colors.successGreen}; transition: width 0.6s ease;
+`;
+
+/* Collapsible section header */
+const CollapsibleHeader = styled.div`
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none; padding: 4px 0; margin-bottom: 14px;
+  &:hover > svg { color: ${colors.deepNavy} !important; }
+`;
+
+/* ── Page wrapper + stage banners ── */
 
 const PageWrapper = styled.div<{ hasStickyBar?: boolean }>`
   max-width: 860px;
