@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
+import LogoutIcon from "@mui/icons-material/Logout";
 import ChildCareIcon from "@mui/icons-material/ChildCare";
 import RoomIcon from "@mui/icons-material/Room";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -362,6 +363,11 @@ export default function ProfilePage() {
     );
 
   /* ── Main render ── */
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    router.push("/login");
+  };
+
   return (
     <PageWrapper>
       <PageHeader>
@@ -385,6 +391,14 @@ export default function ProfilePage() {
               </Button>
             </>
           )}
+          <Button
+            variant="outlined"
+            startIcon={<LogoutIcon />}
+            onClick={handleLogout}
+            sx={{ borderRadius: "50px", borderColor: colors.border, color: colors.mutedText, textTransform: "none" }}
+          >
+            Logout
+          </Button>
         </HeaderActions>
       </PageHeader>
 
