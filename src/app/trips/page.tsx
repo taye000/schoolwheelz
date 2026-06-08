@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { useRouter } from "next/navigation";
 import {
   Typography,
@@ -249,10 +249,10 @@ export default function DriverTripsPage() {
       {pendingLoading ? (
         <LoadRow><CircularProgress size={22} sx={{ color: colors.deepNavy }} /></LoadRow>
       ) : pending.length === 0 ? (
-        <EmptyCard>No pending booking requests.</EmptyCard>
+        <EmptyCard>No pending booking requests right now.</EmptyCard>
       ) : (
-        pending.map((b) => (
-          <PendingCard key={b._id}>
+        pending.map((b, i) => (
+          <PendingCard key={b._id} index={i}>
             <PendingTop>
               <div>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, color: colors.deepNavy }}>
@@ -338,14 +338,16 @@ export default function DriverTripsPage() {
       ) : trips.length === 0 ? (
         <EmptyCard>No accepted or active trips for today.</EmptyCard>
       ) : (
-        trips.map((trip) => {
+        trips.map((trip, i) => {
           const allPickedUp = trip.children.every((c) => c.pickedUp);
           const allDroppedOff = trip.children.every((c) => c.droppedOff);
           const isActive = trip.status === "in_progress";
           const isAccepted = trip.status === "accepted";
 
           return (
-            <TripCard key={trip._id}>
+            <TripCard key={trip._id} index={i}
+              onClick={() => router.push(`/bookings/${trip._id}`)}
+            >
               {/* Trip header */}
               <TripHeader>
                 <div>
@@ -506,6 +508,11 @@ function TripStatusChip({ status }: { status: string }) {
 
 /* ─── Styled components ──────────────────────────────────────── */
 
+const fadeUp = keyframes`
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
 const PageWrapper = styled.div`
   max-width: 780px;
   margin: 0 auto;
@@ -552,13 +559,20 @@ const Center = styled.div`
 `;
 
 /* Pending */
-const PendingCard = styled.div`
+const PendingCard = styled.div<{ index?: number }>`
   background: ${colors.pureWhite};
   border: 1px solid ${colors.border};
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 20px;
-  margin-bottom: 14px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  margin-bottom: 12px;
+  animation: ${fadeUp} 0.35s ease both;
+  animation-delay: ${(p) => Math.min((p.index ?? 0) * 0.06, 0.3)}s;
+  transition: box-shadow 0.18s, border-color 0.18s, transform 0.18s;
+  &:hover {
+    box-shadow: 0 5px 20px rgba(26,54,93,0.09);
+    border-color: ${colors.skyBlue}44;
+    transform: translateY(-1px);
+  }
 `;
 
 const PendingTop = styled.div`
@@ -672,13 +686,22 @@ const CancelRejectBtn = styled.button`
 `;
 
 /* Trip card */
-const TripCard = styled.div`
+const TripCard = styled.div<{ index?: number }>`
   background: ${colors.pureWhite};
   border: 1px solid ${colors.border};
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 22px;
-  margin-bottom: 18px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  margin-bottom: 16px;
+  cursor: pointer;
+  animation: ${fadeUp} 0.35s ease both;
+  animation-delay: ${(p) => Math.min((p.index ?? 0) * 0.06, 0.3)}s;
+  transition: box-shadow 0.18s, border-color 0.18s, transform 0.18s;
+  &:hover {
+    box-shadow: 0 6px 24px rgba(26,54,93,0.1);
+    border-color: ${colors.skyBlue}44;
+    transform: translateY(-2px);
+  }
+  &:active { transform: translateY(0); }
 `;
 
 const TripHeader = styled.div`

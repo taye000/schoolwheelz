@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { Avatar } from "@mui/material";
 import StarIcon from "@mui/icons-material/Star";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -154,7 +154,6 @@ const ProfileCard: React.FC<DriverProfile> = ({
               {totalTrips !== undefined && totalTrips > 0 ? ` / ${totalTrips}` : ""}
               {" "}trip{(totalTrips ?? completedTrips ?? 0) !== 1 ? "s" : ""}
             </TripsCount>
-            <ViewBtn>View</ViewBtn>
           </RightCol>
         </TopSection>
 
@@ -186,6 +185,11 @@ const ProfileCard: React.FC<DriverProfile> = ({
 export default ProfileCard;
 
 // ── Styled components ────────────────────────────────────────────────────────
+const fadeUp = keyframes`
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
 const Card = styled.div`
   display: flex;
   flex-direction: column;
@@ -194,13 +198,15 @@ const Card = styled.div`
   border-radius: 14px;
   padding: 14px 16px;
   cursor: pointer;
-  transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
+  animation: ${fadeUp} 0.35s ease both;
+  transition: box-shadow 0.18s, border-color 0.18s, transform 0.18s;
 
   &:hover {
-    box-shadow: 0 4px 20px rgba(26, 54, 93, 0.1);
+    box-shadow: 0 6px 24px rgba(26, 54, 93, 0.11);
     border-color: ${colors.skyBlue}66;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
   }
+  &:active { transform: translateY(0); }
 `;
 
 const TopSection = styled.div`
@@ -302,24 +308,6 @@ const TripsCount = styled.span`
   font-size: 0.7rem;
   color: ${colors.mutedText};
   font-weight: 500;
-`;
-
-const ViewBtn = styled.span`
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: ${colors.skyBlue};
-  padding: 3px 10px;
-  border: 1px solid ${colors.skyBlue}55;
-  border-radius: 50px;
-  white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
-  margin-top: 2px;
-
-  ${Card}:hover & {
-    background: ${colors.skyBlue};
-    color: #fff;
-    border-color: ${colors.skyBlue};
-  }
 `;
 
 const EstateTag = styled.span`

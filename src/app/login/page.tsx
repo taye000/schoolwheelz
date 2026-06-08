@@ -35,7 +35,7 @@ export default function LoginPage() {
         toast.success("Welcome back!");
         const dest =
           formData.userType === "admin" ? "/admin" :
-          formData.userType === "driver" ? "/profile" :
+          formData.userType === "driver" ? "/bookings" :
           "/drivers";
         router.push(dest);
       }

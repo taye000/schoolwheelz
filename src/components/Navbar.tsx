@@ -87,14 +87,14 @@ const Navbar: React.FC = () => {
                     </Link>
 
                     <NavLinks>
-                        <NavLink href="/drivers">Drivers</NavLink>
-                        {user && user.userType !== "admin" && <NavLink href="/bookings">Bookings</NavLink>}
-                        {user?.userType === "driver" && (
-                            <NavLink href="/trips">My Trips</NavLink>
-                        )}
+                        {user?.userType !== "driver" && <NavLink href="/drivers">Drivers</NavLink>}
+                        {user?.userType === "parent" && <NavLink href="/bookings">My Bookings</NavLink>}
+                        {user?.userType === "driver" && <NavLink href="/bookings">My Bookings</NavLink>}
+                        {user?.userType === "driver" && <NavLink href="/trips">My Trips</NavLink>}
                         {user?.userType === "admin" && (
                             <NavLink href="/admin">Admin Dashboard</NavLink>
                         )}
+                        {!user && <NavLink href="/drivers">Drivers</NavLink>}
                         {!user && <NavLink href="/register">Register</NavLink>}
                         {!user && <NavLink href="/driver-registration">Drive with us</NavLink>}
                         {!user ? (
@@ -174,11 +174,11 @@ const Navbar: React.FC = () => {
                     </DrawerHeader>
                     <List sx={{ flex: 1 }}>
                         {[
-                            { href: "/drivers", label: "Drivers" },
-                            ...(user && user.userType !== "admin" ? [{ href: "/bookings", label: "Bookings" }, { href: "/profile", label: "My Profile" }] : []),
+                            ...(user?.userType !== "driver" ? [{ href: "/drivers", label: "Drivers" }] : []),
+                            ...(user?.userType === "parent" ? [{ href: "/bookings", label: "My Bookings" }, { href: "/profile", label: "My Profile" }] : []),
+                            ...(user?.userType === "driver" ? [{ href: "/bookings", label: "My Bookings" }, { href: "/trips", label: "My Trips" }, { href: "/profile", label: "My Profile" }] : []),
                             ...(user?.userType === "admin" ? [{ href: "/admin", label: "Admin Dashboard" }] : []),
-                            ...(user?.userType === "driver" ? [{ href: "/trips", label: "My Trips" }] : []),
-                            ...(!user ? [{ href: "/register", label: "Register as Parent" }, { href: "/driver-registration", label: "Become a Driver" }] : []),
+                            ...(!user ? [{ href: "/drivers", label: "Drivers" }, { href: "/register", label: "Register as Parent" }, { href: "/driver-registration", label: "Become a Driver" }] : []),
                         ].map((item) => (
                             <Link key={item.href} href={item.href} style={{ textDecoration: "none" }}>
                                 <ListItem onClick={toggleDrawer(false)} sx={{ borderRadius: "10px", mb: 0.5, "&:hover": { bgcolor: colors.lightBg } }}>
