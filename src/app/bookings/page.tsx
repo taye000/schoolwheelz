@@ -153,7 +153,7 @@ export default function BookingsPage() {
       <BookingList>
         {bookings.map((b) => {
           const meta = STATUS_META[b.status] ?? { bg: colors.lightBg, color: colors.mutedText, label: b.status };
-          const schools = [...new Set(b.children.map((c) => c.school).filter(Boolean))];
+          const schools = Array.from(new Set(b.children.map((c) => c.school).filter(Boolean)));
           return (
             <BookingCard key={b._id} faded={!!b.isDeleted}>
               <CardTop>
