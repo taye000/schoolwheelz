@@ -16,7 +16,7 @@ import {
   DialogActions,
   TextField,
 } from "@mui/material";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ChildCareIcon from "@mui/icons-material/ChildCare";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
@@ -140,6 +140,22 @@ export default function BookingDetailPage() {
   // Parent: review done
   const [reviewDone, setReviewDone]   = useState(false);
 
+  // Driver: start trip
+  const [starting, setStarting] = useState(false);
+
+  const handleStart = async () => {
+    setStarting(true);
+    try {
+      await axios.post(`/api/bookings/${id}/start`, {}, { withCredentials: true });
+      toast.success("Trip started! Parent has been notified via SMS.");
+      setBooking((b) => b ? { ...b, status: "in_progress" } : b);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? "Could not start trip.");
+    } finally {
+      setStarting(false);
+    }
+  };
+
   useEffect(() => {
     if (!id) return;
     setError(false);
@@ -236,41 +252,74 @@ export default function BookingDetailPage() {
   const stepIndex   = STATUS_STEPS.indexOf(booking.status);
 
   const isDriver     = userType === "driver";
+  const isParent     = userType === "parent";
   const canAcceptReject = isDriver && booking.status === "pending";
-  const canCancel       = userType === "parent" && booking.status === "pending";
+  const canCancel       = isParent && booking.status === "pending";
+  const canStart        = isDriver && booking.status === "accepted";
   // Show trip journey panel for driver on active bookings
   const showDriverJourney = isDriver && ["accepted", "in_progress", "completed"].includes(booking.status);
   // Show parent tracking/rating for parent on active bookings
-  const showParentLive = userType === "parent" && ["accepted", "in_progress", "completed"].includes(booking.status);
+  const showParentLive = isParent && ["accepted", "in_progress", "completed"].includes(booking.status);
+
+  // Sticky bar shows the single most-important CTA for current stage
+  const hasStickyBar = canAcceptReject || canStart || canCancel;
 
   return (
-    <PageWrapper>
+    <PageWrapper hasStickyBar={hasStickyBar}>
       <BackBtn onClick={() => router.push("/bookings")}>
         <ArrowBackIcon sx={{ fontSize: 18 }} />
         Back to Bookings
       </BackBtn>
 
-      {/* ── Driver: pending action banner ── */}
+      {/* ── Stage context banner (top of page, below back btn) ── */}
       {canAcceptReject && (
-        <ActionBanner>
-          <ActionBannerText>
-            <ActionBannerTitle>New Booking Request</ActionBannerTitle>
-            <ActionBannerSub>
-              {booking.parent?.fullName} is requesting a trip for {booking.seatsBooked} child{booking.seatsBooked !== 1 ? "ren" : ""}.
-              Review the route details and children below, then respond.
-            </ActionBannerSub>
-          </ActionBannerText>
-          <ActionBannerBtns>
-            <RejectBtn onClick={() => setRejectOpen(true)} disabled={accepting}>
-              <CancelIcon sx={{ fontSize: 17 }} />
-              Decline
-            </RejectBtn>
-            <AcceptBtn onClick={handleAccept} disabled={accepting}>
-              <CheckCircleIcon sx={{ fontSize: 17 }} />
-              {accepting ? "Accepting…" : "Accept Trip"}
-            </AcceptBtn>
-          </ActionBannerBtns>
-        </ActionBanner>
+        <StageBanner variant="request">
+          <StageBannerIcon>🔔</StageBannerIcon>
+          <StageBannerBody>
+            <StageBannerTitle>New Trip Request</StageBannerTitle>
+            <StageBannerSub>
+              {booking.parent?.fullName} wants to book {booking.seatsBooked} seat{booking.seatsBooked !== 1 ? "s" : ""}.
+              Review the details below and respond at the bottom.
+            </StageBannerSub>
+          </StageBannerBody>
+        </StageBanner>
+      )}
+      {canStart && (
+        <StageBanner variant="ready">
+          <StageBannerIcon>🚦</StageBannerIcon>
+          <StageBannerBody>
+            <StageBannerTitle>Ready to go!</StageBannerTitle>
+            <StageBannerSub>Tap &ldquo;Start Trip&rdquo; below when you depart to notify the parent.</StageBannerSub>
+          </StageBannerBody>
+        </StageBanner>
+      )}
+      {isDriver && booking.status === "in_progress" && (
+        <StageBanner variant="active">
+          <StageBannerIcon>🏃</StageBannerIcon>
+          <StageBannerBody>
+            <StageBannerTitle>Trip is live</StageBannerTitle>
+            <StageBannerSub>Mark each child as picked up and dropped off using the Journey panel below.</StageBannerSub>
+          </StageBannerBody>
+        </StageBanner>
+      )}
+      {booking.status === "completed" && (
+        <StageBanner variant="done">
+          <StageBannerIcon>✅</StageBannerIcon>
+          <StageBannerBody>
+            <StageBannerTitle>Trip completed</StageBannerTitle>
+            <StageBannerSub>All children were delivered safely.</StageBannerSub>
+          </StageBannerBody>
+        </StageBanner>
+      )}
+      {["canceled", "rejected"].includes(booking.status) && (
+        <StageBanner variant="canceled">
+          <StageBannerIcon>❌</StageBannerIcon>
+          <StageBannerBody>
+            <StageBannerTitle>Booking {booking.status}</StageBannerTitle>
+            <StageBannerSub>{isParent ? "Browse drivers to make a new booking." : "This booking was not completed."}</StageBannerSub>
+          </StageBannerBody>
+          {isParent && <Button size="small" variant="outlined" onClick={() => router.push("/drivers")} sx={{ borderRadius: "50px", flexShrink: 0, alignSelf: "center" }}>Browse Drivers</Button>}
+        </StageBanner>
       )}
 
       <Card>
@@ -535,19 +584,12 @@ export default function BookingDetailPage() {
           <>
             <Divider sx={{ mt: 3 }} />
             <CancelRow>
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={() => setCancelOpen(true)}
-                sx={{ borderRadius: "50px", fontWeight: 700, px: 4 }}
-              >
-                Cancel Booking
-              </Button>
+              <Typography variant="caption" sx={{ color: colors.mutedText }}>Changed your mind? Use the button below.</Typography>
             </CancelRow>
           </>
         )}
 
-        {/* ── Driver: inline accept/reject (also shown at bottom for scroll convenience) ── */}
+        {/* ── Driver: inline accept/reject also in card body (for desktop / readers) ── */}
         {canAcceptReject && (
           <>
             <Divider sx={{ mt: 3 }} />
@@ -564,6 +606,45 @@ export default function BookingDetailPage() {
           </>
         )}
       </Card>
+
+      {/* ── Dialogs ── */}
+
+      {/* ── Sticky bottom action bar ── */}
+      {hasStickyBar && (
+        <StickyBar>
+          {canAcceptReject && (
+            <StickyBarInner>
+              <StickyHint>Respond to this request</StickyHint>
+              <StickyBtnRow>
+                <StickyDeclineBtn onClick={() => setRejectOpen(true)} disabled={accepting}>
+                  <CancelIcon sx={{ fontSize: 16 }} /> Decline
+                </StickyDeclineBtn>
+                <StickyAcceptBtn onClick={handleAccept} disabled={accepting}>
+                  <CheckCircleIcon sx={{ fontSize: 16 }} />
+                  {accepting ? "Accepting…" : "Accept Trip"}
+                </StickyAcceptBtn>
+              </StickyBtnRow>
+            </StickyBarInner>
+          )}
+          {canStart && (
+            <StickyBarInner>
+              <StickyHint>Tap when you set off towards the first pickup</StickyHint>
+              <StickyStartBtn onClick={handleStart} disabled={starting}>
+                {starting ? <CircularProgress size={18} sx={{ color: "#fff", mr: 1 }} /> : "🚌"}
+                &nbsp;{starting ? "Starting…" : "Start Trip — Notify Parent"}
+              </StickyStartBtn>
+            </StickyBarInner>
+          )}
+          {canCancel && (
+            <StickyBarInner>
+              <StickyHint>Only pending bookings can be cancelled</StickyHint>
+              <StickyCancelBtn onClick={() => setCancelOpen(true)}>
+                Cancel Booking
+              </StickyCancelBtn>
+            </StickyBarInner>
+          )}
+        </StickyBar>
+      )}
 
       {/* ── Parent: confirm cancel dialog ── */}
       <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)}>
@@ -625,10 +706,87 @@ export default function BookingDetailPage() {
 
 /* ── Styled components ── */
 
-const PageWrapper = styled.div`
+const slideUp = keyframes`
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
+const PageWrapper = styled.div<{ hasStickyBar?: boolean }>`
   max-width: 860px;
   margin: 0 auto;
-  padding: 40px 24px;
+  padding: 40px 24px ${(p) => p.hasStickyBar ? "120px" : "40px"};
+`;
+
+/* Stage banners */
+const BANNER_COLORS: Record<string, { bg: string; border: string }> = {
+  request:  { bg: "#EFF6FF", border: "#BFD7FF" },
+  ready:    { bg: "#F0FDF4", border: "#9AE6B4" },
+  active:   { bg: "#EBF8FF", border: "#90CDF4" },
+  done:     { bg: "#F0FFF4", border: "#9AE6B4" },
+  canceled: { bg: "#FFF5F5", border: "#FEB2B2" },
+};
+
+const StageBanner = styled.div<{ variant: string }>`
+  display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap;
+  padding: 16px 20px; border-radius: 14px; margin-bottom: 20px;
+  background: ${(p) => BANNER_COLORS[p.variant]?.bg ?? "#F7FAFC"};
+  border: 1px solid ${(p) => BANNER_COLORS[p.variant]?.border ?? "#E2E8F0"};
+  animation: ${slideUp} 0.3s ease both;
+`;
+const StageBannerIcon = styled.span`font-size: 1.5rem; flex-shrink: 0; margin-top: 2px;`;
+const StageBannerBody = styled.div`flex: 1;`;
+const StageBannerTitle = styled.p`font-size: 0.95rem; font-weight: 700; color: ${colors.deepNavy}; margin: 0 0 3px;`;
+const StageBannerSub   = styled.p`font-size: 0.82rem; color: ${colors.mutedText}; margin: 0; line-height: 1.45;`;
+
+/* Sticky action bar */
+const StickyBar = styled.div`
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid ${colors.border};
+  padding: 12px 20px 20px;
+  box-shadow: 0 -4px 24px rgba(26,54,93,0.1);
+`;
+const StickyBarInner = styled.div`
+  max-width: 860px; margin: 0 auto;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+`;
+const StickyHint = styled.span`
+  font-size: 0.74rem; color: ${colors.mutedText}; flex: 1; min-width: 160px;
+`;
+const StickyBtnRow = styled.div`display: flex; gap: 10px; flex-shrink: 0;`;
+const StickyAcceptBtn = styled.button`
+  display: flex; align-items: center; gap: 6px; padding: 12px 28px;
+  border-radius: 50px; font-size: 0.9rem; font-weight: 800; cursor: pointer; border: none;
+  background: ${colors.successGreen}; color: #fff;
+  box-shadow: 0 4px 14px ${colors.successGreen}55;
+  transition: all 0.18s;
+  &:hover:not(:disabled) { background: #276749; transform: translateY(-1px); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+`;
+const StickyDeclineBtn = styled.button`
+  display: flex; align-items: center; gap: 6px; padding: 12px 22px;
+  border-radius: 50px; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  background: transparent; border: 1.5px solid ${colors.errorRed}; color: ${colors.errorRed};
+  transition: all 0.18s;
+  &:hover:not(:disabled) { background: ${colors.errorRed}; color: #fff; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+`;
+const StickyStartBtn = styled.button`
+  display: flex; align-items: center; gap: 6px; padding: 14px 32px;
+  border-radius: 50px; font-size: 0.95rem; font-weight: 800; cursor: pointer; border: none;
+  background: linear-gradient(135deg, ${colors.deepNavy}, #2c508a);
+  color: #fff; flex: 1; justify-content: center;
+  box-shadow: 0 4px 16px rgba(26,54,93,0.3);
+  transition: all 0.18s;
+  &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(26,54,93,0.4); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+`;
+const StickyCancelBtn = styled.button`
+  padding: 11px 24px; border-radius: 50px; font-size: 0.88rem; font-weight: 700; cursor: pointer;
+  background: transparent; border: 1.5px solid ${colors.errorRed}; color: ${colors.errorRed};
+  transition: all 0.18s;
+  &:hover { background: ${colors.errorRed}; color: #fff; }
 `;
 
 const BackBtn = styled.button`
@@ -638,28 +796,6 @@ const BackBtn = styled.button`
   color: ${colors.deepNavy}; font-weight: 600; font-size: 0.875rem;
   cursor: pointer; margin-bottom: 20px; transition: all 0.2s;
   &:hover { background: ${colors.deepNavy}; color: #fff; border-color: ${colors.deepNavy}; }
-`;
-
-/* Driver action banner (top of page) */
-const ActionBanner = styled.div`
-  display: flex; align-items: flex-start; justify-content: space-between;
-  flex-wrap: wrap; gap: 16px;
-  background: linear-gradient(135deg, ${colors.deepNavy} 0%, #2a4a7f 100%);
-  border-radius: 16px; padding: 22px 28px; margin-bottom: 20px;
-`;
-
-const ActionBannerText = styled.div`flex: 1;`;
-
-const ActionBannerTitle = styled.p`
-  font-size: 1rem; font-weight: 700; color: #fff; margin: 0 0 4px;
-`;
-
-const ActionBannerSub = styled.p`
-  font-size: 0.85rem; color: rgba(255,255,255,0.75); margin: 0;
-`;
-
-const ActionBannerBtns = styled.div`
-  display: flex; gap: 10px; align-items: center; flex-shrink: 0;
 `;
 
 const RejectBtn = styled.button`

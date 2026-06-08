@@ -199,10 +199,41 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Optional filters
+    const status = searchParams.get("status");
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    if (status) baseFilter.status = status;
+    if (from || to) {
+      baseFilter.tripDate = {} as any;
+      if (from) (baseFilter.tripDate as any).$gte = new Date(from);
+      if (to)
+        (baseFilter.tripDate as any).$lte = new Date(
+          new Date(to).setHours(23, 59, 59, 999),
+        );
+    }
+
+    // Pagination
+    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(searchParams.get("limit") ?? "10")),
+    );
+    const total = await Booking.countDocuments(baseFilter);
+    const pages = Math.ceil(total / limit);
+
     const bookings = await Booking.find(baseFilter)
-      .populate("driver")
-      .populate("parent");
-    return NextResponse.json({ success: true, data: bookings });
+      .populate("driver", "fullName phoneNumber")
+      .populate("parent", "fullName phoneNumber")
+      .sort({ tripDate: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    return NextResponse.json({
+      success: true,
+      data: bookings,
+      pagination: { total, pages, page, limit },
+    });
   } catch (error) {
     console.error(error);
     return NextResponse.json(

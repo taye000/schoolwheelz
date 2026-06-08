@@ -11,7 +11,15 @@ import {
   Divider,
   Tooltip,
   Button,
+  TextField,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import SchoolIcon from "@mui/icons-material/School";
@@ -65,6 +73,14 @@ interface IPendingBooking {
   parent: { fullName: string; phoneNumber: string } | null;
 }
 
+interface IHistoryBooking {
+  _id: string; bookingId: string; status: string; tripDate: string;
+  seatsBooked: number; parent: { fullName: string } | null;
+  children: { name: string; school: string }[];
+}
+
+interface IPagination { total: number; pages: number; page: number; limit: number; }
+
 /* ─── Page ───────────────────────────────────────────────────── */
 
 export default function DriverTripsPage() {
@@ -79,10 +95,21 @@ export default function DriverTripsPage() {
   const [pending, setPending] = useState<IPendingBooking[]>([]);
   const [pendingLoading, setPendingLoading] = useState(true);
 
-  const [actioning, setActioning] = useState<string | null>(null); // id of item being mutated
-  // reject flow: track which card is in reject-reason-entry mode + the typed reason
+  const [actioning, setActioning] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+
+  // Tabs: "today" | "history"
+  const [activeTab, setActiveTab] = useState<"today" | "history">("today");
+
+  // History tab state
+  const [history, setHistory] = useState<IHistoryBooking[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPagination, setHistoryPagination] = useState<IPagination>({ total: 0, pages: 1, page: 1, limit: 10 });
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyStatus, setHistoryStatus] = useState("completed");
+  const [historyFrom, setHistoryFrom] = useState("");
+  const [historyTo, setHistoryTo] = useState("");
 
   /* ── Auth ── */
   useEffect(() => {
@@ -118,7 +145,7 @@ export default function DriverTripsPage() {
   const loadPending = useCallback(async () => {
     setPendingLoading(true);
     try {
-      const { data } = await axios.get("/api/bookings", { withCredentials: true });
+      const { data } = await axios.get("/api/bookings?status=pending", { withCredentials: true });
       if (data.success) {
         setPending((data.data as IPendingBooking[]).filter((b) => b.status === "pending"));
       }
@@ -135,6 +162,46 @@ export default function DriverTripsPage() {
       loadPending();
     }
   }, [driverId, loadTrips, loadPending]);
+
+  /* ── History tab ── */
+  useEffect(() => {
+    if (activeTab !== "history" || !driverId) return;
+    setHistoryLoading(true);
+    const params = new URLSearchParams({ page: String(historyPage), limit: "10" });
+    if (historyStatus) params.set("status", historyStatus);
+    if (historyFrom) params.set("from", historyFrom);
+    if (historyTo) params.set("to", historyTo);
+    axios.get(`/api/bookings?${params}`, { withCredentials: true })
+      .then((res) => {
+        if (res.data.success) {
+          setHistory(res.data.data);
+          if (res.data.pagination) setHistoryPagination(res.data.pagination);
+        }
+      })
+      .catch(() => toast.error("Could not load trip history."))
+      .finally(() => setHistoryLoading(false));
+  }, [activeTab, driverId, historyPage, historyStatus, historyFrom, historyTo]);
+
+  function exportHistoryCSV() {
+    const rows = [
+      ["Booking ID", "Status", "Trip Date", "Parent", "Seats", "Schools"],
+      ...history.map((b) => [
+        b.bookingId, b.status,
+        new Date(b.tripDate).toLocaleDateString("en-KE"),
+        b.parent?.fullName ?? "",
+        String(b.seatsBooked),
+        Array.from(new Set(b.children.map((c) => c.school).filter(Boolean))).join("; "),
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((v) => `"${v}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `trip-history-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   /* ── Actions ── */
 
@@ -234,7 +301,7 @@ export default function DriverTripsPage() {
       <Header>
         <div>
           <Typography variant="h4" sx={{ fontWeight: 800, color: colors.deepNavy }}>
-            Today&apos;s Trips
+            My Trips
           </Typography>
           <Typography variant="body2" sx={{ color: colors.mutedText, mt: 0.5 }}>
             {today}
@@ -243,7 +310,14 @@ export default function DriverTripsPage() {
         <DirectionsCarIcon sx={{ fontSize: 40, color: colors.skyBlue, opacity: 0.6 }} />
       </Header>
 
-      {/* ── Pending Requests ── */}
+      {/* ── Tabs ── */}
+      <TabRow>
+        <Tab active={activeTab === "today"} onClick={() => setActiveTab("today")}>Today</Tab>
+        <Tab active={activeTab === "history"} onClick={() => setActiveTab("history")}>History</Tab>
+      </TabRow>
+
+      {/* ─────────── TODAY TAB ─────────── */}
+      {activeTab === "today" && (<>
       <SectionLabel>Pending Requests</SectionLabel>
 
       {pendingLoading ? (
@@ -484,6 +558,93 @@ export default function DriverTripsPage() {
           );
         })
       )}
+      </>)}
+
+      {/* ─────────── HISTORY TAB ─────────── */}
+      {activeTab === "history" && (
+        <>
+          {/* Filter toolbar */}
+          <HistoryToolbar>
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={historyStatus}
+                label="Status"
+                onChange={(e) => { setHistoryStatus(e.target.value); setHistoryPage(1); }}
+                sx={{ borderRadius: "10px" }}
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="canceled">Cancelled</MenuItem>
+                <MenuItem value="rejected">Rejected</MenuItem>
+                <MenuItem value="in_progress">In Progress</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="From" type="date" size="small" value={historyFrom}
+              onChange={(e) => { setHistoryFrom(e.target.value); setHistoryPage(1); }}
+              InputLabelProps={{ shrink: true }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+            />
+            <TextField
+              label="To" type="date" size="small" value={historyTo}
+              onChange={(e) => { setHistoryTo(e.target.value); setHistoryPage(1); }}
+              InputLabelProps={{ shrink: true }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+            />
+            <Tooltip title="Export as CSV">
+              <HistoryExportBtn onClick={exportHistoryCSV} disabled={history.length === 0}>
+                <FileDownloadIcon sx={{ fontSize: 15 }} /> Export
+              </HistoryExportBtn>
+            </Tooltip>
+          </HistoryToolbar>
+
+          {historyLoading ? (
+            <LoadRow><CircularProgress size={22} sx={{ color: colors.deepNavy }} /></LoadRow>
+          ) : history.length === 0 ? (
+            <EmptyCard>No trips found for the selected filters.</EmptyCard>
+          ) : (
+            <>
+              {history.map((b, i) => {
+                const schools = Array.from(new Set(b.children.map((c) => c.school).filter(Boolean)));
+                return (
+                  <HistoryCard key={b._id} index={i} onClick={() => router.push(`/bookings/${b._id}`)}>
+                    <HistoryCardTop>
+                      <div>
+                        <HistoryParent>{b.parent?.fullName ?? "Unknown Parent"}</HistoryParent>
+                        <HistoryMeta>
+                          <CalendarTodayIcon sx={{ fontSize: 11 }} />
+                          {new Date(b.tripDate).toLocaleDateString("en-KE", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                          &nbsp;·&nbsp;{b.seatsBooked} seat{b.seatsBooked !== 1 ? "s" : ""}
+                          {schools.length > 0 && <>&nbsp;·&nbsp;{schools.join(", ")}</>}
+                        </HistoryMeta>
+                      </div>
+                      <Chip
+                        label={b.status.replace("_", " ")}
+                        size="small"
+                        sx={{
+                          bgcolor: b.status === "completed" ? "#EFF6FF" : b.status === "canceled" ? "#FEF2F2" : "#F7FAFC",
+                          color: b.status === "completed" ? "#1D4ED8" : b.status === "canceled" ? "#991B1B" : colors.mutedText,
+                          fontWeight: 700, fontSize: "0.71rem", textTransform: "capitalize",
+                        }}
+                      />
+                    </HistoryCardTop>
+                    <HistoryRef>{b.bookingId}</HistoryRef>
+                  </HistoryCard>
+                );
+              })}
+
+              {historyPagination.pages > 1 && (
+                <PaginationRow>
+                  <PageBtn onClick={() => setHistoryPage((p) => Math.max(1, p - 1))} disabled={historyPage <= 1}>‹ Prev</PageBtn>
+                  <PageInfo>Page {historyPage} of {historyPagination.pages} · {historyPagination.total} total</PageInfo>
+                  <PageBtn onClick={() => setHistoryPage((p) => Math.min(historyPagination.pages, p + 1))} disabled={historyPage >= historyPagination.pages}>Next ›</PageBtn>
+                </PaginationRow>
+              )}
+            </>
+          )}
+        </>
+      )}
     </PageWrapper>
   );
 }
@@ -518,6 +679,64 @@ const PageWrapper = styled.div`
   margin: 0 auto;
   padding: 40px 24px 80px;
 `;
+
+/* Tabs */
+const TabRow = styled.div`
+  display: flex; gap: 0; margin-bottom: 28px;
+  border-bottom: 2px solid ${colors.border};
+`;
+const Tab = styled.button<{ active?: boolean }>`
+  padding: 10px 24px; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  background: transparent; border: none;
+  color: ${(p) => p.active ? colors.deepNavy : colors.mutedText};
+  border-bottom: 2px solid ${(p) => p.active ? colors.deepNavy : "transparent"};
+  margin-bottom: -2px; transition: all 0.15s;
+  &:hover { color: ${colors.deepNavy}; }
+`;
+
+/* History tab */
+const HistoryToolbar = styled.div`
+  display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start;
+  background: ${colors.lightBg}; border: 1px solid ${colors.border};
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;
+`;
+const HistoryExportBtn = styled.button<{ disabled?: boolean }>`
+  display: flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 600;
+  padding: 6px 14px; border-radius: 50px; cursor: ${(p) => p.disabled ? "not-allowed" : "pointer"};
+  border: 1px solid ${colors.border}; background: transparent;
+  color: ${(p) => p.disabled ? colors.mutedText : colors.deepNavy};
+  opacity: ${(p) => p.disabled ? 0.5 : 1};
+  &:hover:not(:disabled) { background: ${colors.deepNavy}; color: #fff; border-color: ${colors.deepNavy}; }
+`;
+const HistoryCard = styled.div<{ index: number }>`
+  background: ${colors.pureWhite}; border: 1px solid ${colors.border};
+  border-radius: 14px; padding: 14px 18px; margin-bottom: 10px; cursor: pointer;
+  animation: ${fadeUp} 0.35s ease both; animation-delay: ${(p) => Math.min(p.index * 0.04, 0.24)}s;
+  transition: box-shadow 0.18s, border-color 0.18s, transform 0.18s;
+  &:hover { box-shadow: 0 5px 20px rgba(26,54,93,0.09); border-color: ${colors.skyBlue}44; transform: translateY(-2px); }
+`;
+const HistoryCardTop = styled.div`
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+`;
+const HistoryParent = styled.div`font-weight: 700; font-size: 0.92rem; color: ${colors.deepNavy}; margin-bottom: 3px;`;
+const HistoryMeta = styled.div`
+  display: flex; align-items: center; gap: 4px; font-size: 0.77rem; color: ${colors.mutedText};
+`;
+const HistoryRef = styled.div`font-family: monospace; font-size: 0.68rem; color: ${colors.mutedText}; opacity: 0.55; margin-top: 8px;`;
+
+/* Pagination */
+const PaginationRow = styled.div`
+  display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 28px;
+`;
+const PageBtn = styled.button<{ disabled?: boolean }>`
+  font-size: 0.82rem; font-weight: 700; padding: 7px 20px; border-radius: 50px;
+  border: 1px solid ${colors.border}; background: ${colors.pureWhite};
+  color: ${(p) => p.disabled ? colors.mutedText : colors.deepNavy};
+  cursor: ${(p) => p.disabled ? "not-allowed" : "pointer"};
+  opacity: ${(p) => p.disabled ? 0.45 : 1};
+  &:hover:not(:disabled) { background: ${colors.deepNavy}; color: #fff; border-color: ${colors.deepNavy}; }
+`;
+const PageInfo = styled.span`font-size: 0.78rem; color: ${colors.mutedText};`;
 
 const Header = styled.div`
   display: flex;
