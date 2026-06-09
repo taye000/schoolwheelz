@@ -71,6 +71,11 @@ export async function PATCH(
       await sendSMS(
         parent.phoneNumber,
         SmsTemplates.childPickedUp(child.name, user.fullName),
+        {
+          eventType: "child_picked_up",
+          bookingId: booking._id.toString(),
+          triggeredBy: user.id,
+        },
       );
     }
 

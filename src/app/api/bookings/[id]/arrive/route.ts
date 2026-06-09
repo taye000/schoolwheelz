@@ -63,6 +63,11 @@ export async function POST(
       await sendSMS(
         parent.phoneNumber,
         `Hi ${parent.fullName}, your School Wheelz driver ${user.fullName} has arrived at the pickup point. Please send your child(ren) out now!`,
+        {
+          eventType: "driver_arrived",
+          bookingId: booking._id.toString(),
+          triggeredBy: user.id,
+        },
       );
     }
 

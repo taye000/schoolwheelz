@@ -64,6 +64,11 @@ export async function PATCH(
       await sendSMS(
         parent.phoneNumber,
         SmsTemplates.bookingRejected(driver?.fullName ?? "The driver", reason),
+        {
+          eventType: "booking_rejected",
+          bookingId: booking._id.toString(),
+          triggeredBy: user.id,
+        },
       );
     }
 

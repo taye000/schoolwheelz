@@ -89,6 +89,11 @@ export async function PATCH(
       await sendSMS(
         parent.phoneNumber,
         SmsTemplates.arrivedAtSchool(child.name, child.school),
+        {
+          eventType: "child_dropped_off",
+          bookingId: booking._id.toString(),
+          triggeredBy: user.id,
+        },
       );
     }
 

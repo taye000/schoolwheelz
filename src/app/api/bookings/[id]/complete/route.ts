@@ -140,6 +140,11 @@ export async function POST(
       await sendSMS(
         parent.phoneNumber,
         `Hi ${parent.fullName}, your School Wheelz trip has been completed. ${childNames} ${booking.children.length === 1 ? "has" : "have"} been safely dropped off. Have a great day!`,
+        {
+          eventType: "trip_completed",
+          bookingId: booking._id.toString(),
+          triggeredBy: user.id,
+        },
       );
     }
 

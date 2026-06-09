@@ -67,6 +67,11 @@ export async function PATCH(
       await sendSMS(
         parent.phoneNumber,
         SmsTemplates.bookingAccepted(parent.fullName, driver.fullName),
+        {
+          eventType: "booking_accepted",
+          bookingId: booking._id.toString(),
+          triggeredBy: user.id,
+        },
       );
     }
 

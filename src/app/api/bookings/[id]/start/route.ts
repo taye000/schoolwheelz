@@ -97,6 +97,11 @@ export async function POST(
       await sendSMS(
         parent.phoneNumber,
         SmsTemplates.driverOnTheWay(user.fullName, 10), // default 10-min ETA
+        {
+          eventType: "trip_started",
+          bookingId: booking._id.toString(),
+          triggeredBy: user.id,
+        },
       );
     }
 
