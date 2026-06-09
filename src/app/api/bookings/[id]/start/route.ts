@@ -51,10 +51,15 @@ export async function POST(
         { status: 400 },
       );
 
-    // Mark boarded children as picked up
-    const { boardedChildIds = [] }: { boardedChildIds?: string[] } = await req
-      .json()
-      .catch(() => ({ boardedChildIds: [] }));
+    // Read body once
+    const body = (await req.json().catch(() => ({}))) as {
+      boardedChildIds?: string[];
+      startLat?: number;
+      startLng?: number;
+    };
+    const boardedChildIds: string[] = body.boardedChildIds ?? [];
+    const hasStartGPS =
+      typeof body.startLat === "number" && typeof body.startLng === "number";
 
     const now = new Date();
     booking.children.forEach((child: any) => {
@@ -65,10 +70,23 @@ export async function POST(
     });
 
     booking.status = "in_progress";
+    (booking as any).tripStartedAt = now;
     booking.tracking.isTrackingEnabled = true;
-    booking.tracking.lastUpdated = new Date();
+    booking.tracking.lastUpdated = now;
     booking.markModified("tracking");
     await booking.save();
+
+    // Save start GPS via $set to avoid cast issues
+    if (hasStartGPS) {
+      await Booking.findByIdAndUpdate(params.id, {
+        $set: {
+          "tracking.startLocation": {
+            type: "Point",
+            coordinates: [body.startLng, body.startLat],
+          },
+        },
+      });
+    }
 
     // Update driver liveStatus
     await Driver.findByIdAndUpdate(user.id, { liveStatus: "on_trip" });

@@ -138,9 +138,23 @@ export default function TripJourneyPanel({ booking, onBookingUpdate }: Props) {
   const handleStartTrip = async () => {
     setStarting(true);
     try {
+      // Capture GPS at start for distance tracking
+      let startGPS: { startLat: number; startLng: number } | undefined;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 5000,
+          })
+        );
+        startGPS = { startLat: pos.coords.latitude, startLng: pos.coords.longitude };
+      } catch {
+        // GPS unavailable — proceed without
+      }
+
       await axios.post(
         `/api/bookings/${bookingId}/start`,
-        { boardedChildIds: Array.from(boardedIds) },
+        { boardedChildIds: Array.from(boardedIds), ...startGPS },
         { withCredentials: true },
       );
       toast.success("Trip started! Parent can now track you.");

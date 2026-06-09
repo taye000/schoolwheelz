@@ -32,6 +32,9 @@ interface IBooking {
   parent: { fullName: string } | null;
   children: IChild[];
   seatsBooked: number; tripDate: string; status: string; isDeleted?: boolean;
+  tripDurationMins?: number;
+  tripDistanceKm?: number;
+  price?: number;
 }
 
 interface IPagination { total: number; pages: number; page: number; limit: number; }
@@ -64,16 +67,36 @@ const greetDriver = () => {
 };
 
 function exportCSV(bookings: IBooking[], userType: string) {
-  const rows = [
-    ["Booking ID", "Status", "Trip Date", userType === "driver" ? "Parent" : "Driver", "Seats", "Schools"],
-    ...bookings.map((b) => [
-      b.bookingId, b.status,
-      new Date(b.tripDate).toLocaleDateString("en-KE"),
-      userType === "driver" ? (b.parent?.fullName ?? "") : (b.driver?.fullName ?? ""),
-      String(b.seatsBooked),
-        Array.from(new Set(b.children.map((c) => c.school).filter(Boolean))).join("; "),
-    ]),
+  const headers = [
+    "Booking ID", "Status", "Trip Date",
+    userType === "driver" ? "Parent" : "Driver",
+    "Seats", "Duration (min)", "Distance (km)", "Price (KES)", "Schools",
   ];
+  const dataRows = bookings.map((b) => [
+    b.bookingId,
+    b.status,
+    new Date(b.tripDate).toLocaleDateString("en-KE"),
+    userType === "driver" ? (b.parent?.fullName ?? "") : (b.driver?.fullName ?? ""),
+    String(b.seatsBooked),
+    b.tripDurationMins != null ? String(b.tripDurationMins) : "",
+    b.tripDistanceKm != null ? String(b.tripDistanceKm) : "",
+    b.price != null ? String(b.price) : "",
+    Array.from(new Set(b.children.map((c) => c.school).filter(Boolean))).join("; "),
+  ]);
+  // Totals row — sum numeric columns
+  const totalSeats = bookings.reduce((s, b) => s + (b.seatsBooked || 0), 0);
+  const totalDuration = bookings.reduce((s, b) => s + (b.tripDurationMins ?? 0), 0);
+  const totalDistance = Math.round(bookings.reduce((s, b) => s + (b.tripDistanceKm ?? 0), 0) * 10) / 10;
+  const totalPrice = bookings.reduce((s, b) => s + (b.price ?? 0), 0);
+  const totalsRow = [
+    "TOTALS", "", "", "",
+    String(totalSeats),
+    totalDuration > 0 ? String(totalDuration) : "",
+    totalDistance > 0 ? String(totalDistance) : "",
+    totalPrice > 0 ? String(totalPrice) : "",
+    "",
+  ];
+  const rows = [headers, ...dataRows, totalsRow];
   const csv = rows.map((r) => r.map((v) => `"${v}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);

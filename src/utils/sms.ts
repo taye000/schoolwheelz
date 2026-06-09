@@ -1,32 +1,15 @@
 /**
- * Africa's Talking SMS service.
+ * TalkSasa SMS service (bulksms.talksasa.com).
  *
  * This module is server-only (never import it in client components).
  * Usage:
  *   import { sendSMS } from "@/utils/sms";
  *   await sendSMS("+254712345678", "Your booking has been confirmed.");
- *   await sendSMS(["+254712345678", "+254798765432"], "Driver is on the way!");
+ *   await sendSMS(["+254712345678", "+254798765432"], "Driver is on the way!", { eventType: "trip_started", bookingId: "..." });
+ *
+ * Every send attempt (success or failure) is written to the SmsLog collection
+ * as a fire-and-forget operation so it never blocks the main request.
  */
-
-import AfricasTalking from "africastalking";
-
-let _client: ReturnType<typeof AfricasTalking> | null = null;
-
-function getClient() {
-  if (_client) return _client;
-
-  const username = process.env.AFRICASTALKING_USERNAME;
-  const apiKey = process.env.AFRICASTALKING_API_KEY;
-
-  if (!username || !apiKey) {
-    throw new Error(
-      "Africa's Talking credentials are missing. Set AFRICASTALKING_USERNAME and AFRICASTALKING_API_KEY in .env.local.",
-    );
-  }
-
-  _client = AfricasTalking({ username, apiKey });
-  return _client;
-}
 
 export interface SMSResult {
   success: boolean;
@@ -34,55 +17,116 @@ export interface SMSResult {
   error?: string;
 }
 
+export interface SMSContext {
+  /** Logical event name, e.g. "booking_accepted", "trip_started" */
+  eventType?: string;
+  /** Booking._id string this SMS relates to */
+  bookingId?: string;
+  /** User._id who triggered the action (omit for system-generated messages) */
+  triggeredBy?: string;
+}
+
+/** Persist an SMS log entry in the background — never throws */
+async function persistLog(
+  to: string[],
+  message: string,
+  result: SMSResult,
+  ctx: SMSContext,
+): Promise<void> {
+  try {
+    // Dynamic imports so this module can be used before DB is connected
+    const { default: dbConnect } = await import("@/utils/dbConnect");
+    const { default: SmsLog } = await import("@/models/SmsLog");
+    await dbConnect();
+    await SmsLog.create({
+      to,
+      message,
+      status: result.success ? "sent" : "failed",
+      providerMessageId: result.messageId,
+      error: result.error,
+      eventType: ctx.eventType,
+      bookingId: ctx.bookingId,
+      triggeredBy: ctx.triggeredBy,
+    });
+  } catch (logErr) {
+    // Logging should never crash the caller
+    console.error("[SMS] Failed to persist log:", logErr);
+  }
+}
+
 /**
- * Send an SMS to one or more recipients.
+ * Send an SMS to one or more recipients via TalkSasa.
  *
  * @param to       E.164 phone number(s), e.g. "+254712345678"
- * @param message  Plain-text message body (max 160 chars per SMS segment)
+ * @param message  Plain-text message body
+ * @param ctx      Optional context for the audit log (eventType, bookingId, triggeredBy)
  * @returns        Result with success flag and optional messageId or error
  */
 export async function sendSMS(
   to: string | string[],
   message: string,
+  ctx: SMSContext = {},
 ): Promise<SMSResult> {
+  const recipients = Array.isArray(to) ? to : [to];
+
+  const apiKey = process.env.TALKSASA_API_KEY;
+  const senderId = process.env.TALKSASA_SENDER_ID;
+
+  if (!apiKey || !senderId) {
+    const err =
+      "TalkSasa credentials missing. Set TALKSASA_API_KEY and TALKSASA_SENDER_ID in .env.local.";
+    console.error("[SMS]", err);
+    const result: SMSResult = { success: false, error: err };
+    persistLog(recipients, message, result, ctx); // fire and forget
+    return result;
+  }
+
   try {
-    const client = getClient();
-    const sms = client.SMS;
+    const response = await fetch(
+      "https://bulksms.talksasa.com/api/v3/sms/send",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          recipient: recipients.join(","),
+          sender_id: senderId,
+          type: "plain",
+          message,
+        }),
+      },
+    );
 
-    const recipients = Array.isArray(to) ? to : [to];
-
-    // @types/africastalking incorrectly marks `from` as required; cast to any to bypass it
-    const sendOptions = {
-      to: recipients,
-      message,
-    } as Parameters<typeof sms.send>[0];
-
-    const response = (await sms.send(sendOptions)) as unknown as {
-      SMSMessageData: {
-        Recipients: Array<{
-          statusCode: number;
-          messageId: string;
-          status: string;
-        }>;
-      };
+    const data = (await response.json()) as {
+      status: string;
+      data?: string;
+      message?: string;
     };
 
-    const result = response?.SMSMessageData?.Recipients?.[0];
-    const statusCode = result?.statusCode;
-
-    // Africa's Talking uses statusCode 101 for "Sent" and 102 for "Queued"
-    if (statusCode === 101 || statusCode === 102) {
-      return { success: true, messageId: result?.messageId };
+    if (data.status === "success") {
+      const result: SMSResult = {
+        success: true,
+        messageId:
+          typeof data.data === "string" ? data.data.slice(0, 100) : undefined,
+      };
+      persistLog(recipients, message, result, ctx);
+      return result;
     }
 
-    return {
-      success: false,
-      error: result?.status ?? "Unknown error from Africa's Talking",
-    };
+    const errMsg = data.message ?? `HTTP ${response.status}: ${data.status}`;
+    console.error("[SMS] TalkSasa error:", errMsg);
+    const result: SMSResult = { success: false, error: errMsg };
+    persistLog(recipients, message, result, ctx);
+    return result;
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[SMS] Send failed:", message);
-    return { success: false, error: message };
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("[SMS] Send failed:", errMsg);
+    const result: SMSResult = { success: false, error: errMsg };
+    persistLog(recipients, message, result, ctx);
+    return result;
   }
 }
 

@@ -34,6 +34,8 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DirectionsIcon from "@mui/icons-material/Directions";
+import RouteIcon from "@mui/icons-material/Route";
+import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
 import TripJourneyPanel from "@/components/TripJourneyPanel";
@@ -82,6 +84,11 @@ interface IBooking {
     isTrackingEnabled?: boolean;
     lastUpdated?: string;
   };
+  tripStartedAt?: string;
+  tripCompletedAt?: string;
+  tripDurationMins?: number;
+  tripDistanceKm?: number;
+  price?: number;
 }
 
 const STATUS_STEPS = ["pending", "accepted", "in_progress", "completed"];
@@ -568,6 +575,35 @@ export default function BookingDetailPage() {
             )}
           </OneTimeGrid>
         )}
+
+        {/* Duration + distance — visible for completed trips */}
+        {(booking.tripDurationMins != null || booking.tripDistanceKm != null) && (
+          <TripStatsRow>
+            {booking.tripDurationMins != null && (
+              <TripStatChip>
+                <TimerOutlinedIcon sx={{ fontSize: 15, color: colors.skyBlue }} />
+                <span>
+                  {booking.tripDurationMins < 60
+                    ? `${booking.tripDurationMins} min`
+                    : `${Math.floor(booking.tripDurationMins / 60)}h ${booking.tripDurationMins % 60}m`}
+                </span>
+              </TripStatChip>
+            )}
+            {booking.tripDistanceKm != null && (
+              <TripStatChip>
+                <RouteIcon sx={{ fontSize: 15, color: colors.skyBlue }} />
+                <span>{booking.tripDistanceKm} km</span>
+              </TripStatChip>
+            )}
+            {booking.price != null && (
+              <TripStatChip>
+                <span style={{ fontWeight: 700, fontSize: "0.75rem", color: colors.mutedText }}>KES</span>
+                <span>{booking.price.toLocaleString()}</span>
+              </TripStatChip>
+            )}
+          </TripStatsRow>
+        )}
+
         </Collapse>
 
         <Divider sx={{ my: 3 }} />
@@ -1149,6 +1185,17 @@ const DirectionText = styled.span`
 const OneTimeGrid = styled.div`
   display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
   @media (max-width: 500px) { grid-template-columns: 1fr; }
+`;
+
+const TripStatsRow = styled.div`
+  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px;
+`;
+
+const TripStatChip = styled.div`
+  display: flex; align-items: center; gap: 6px;
+  background: ${colors.skyBlue}12; border: 1px solid ${colors.skyBlue}33;
+  border-radius: 50px; padding: 6px 14px;
+  font-size: 0.88rem; font-weight: 600; color: ${colors.deepNavy};
 `;
 
 const RecurringGrid = styled.div`

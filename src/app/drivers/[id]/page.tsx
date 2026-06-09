@@ -8,6 +8,8 @@ import StarIcon from "@mui/icons-material/Star";
 import StarHalfIcon from "@mui/icons-material/StarHalf";
 import StarOutlineIcon from "@mui/icons-material/StarOutline";
 import PhoneIcon from "@mui/icons-material/Phone";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CheckIcon from "@mui/icons-material/Check";
 import WcIcon from "@mui/icons-material/Wc";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import EventSeatIcon from "@mui/icons-material/EventSeat";
@@ -163,6 +165,16 @@ export default function DriverDetailPage() {
     }
   }, [user, reviews]);
 
+  // clipboard copy state for phone number
+  const [phoneCopied, setPhoneCopied] = useState(false);
+  const copyPhone = () => {
+    if (!driver) return;
+    navigator.clipboard.writeText(driver.phoneNumber).then(() => {
+      setPhoneCopied(true);
+      setTimeout(() => setPhoneCopied(false), 2000);
+    });
+  };
+
   if (loading)
     return (
       <LoadingWrap>
@@ -292,7 +304,17 @@ export default function DriverDetailPage() {
             </CollapsibleHeader>
             <Collapse in={aboutOpen}>
             <TileGrid>
-              <Tile><PhoneIcon sx={{ color: colors.skyBlue, fontSize: 18 }} /><span>{driver.phoneNumber}</span></Tile>
+              <PhoneTile>
+                <PhoneIcon sx={{ color: colors.skyBlue, fontSize: 18, flexShrink: 0 }} />
+                <a href={`tel:${driver.phoneNumber}`} style={{ color: colors.deepNavy, textDecoration: "none", fontWeight: 500 }}>
+                  {driver.phoneNumber}
+                </a>
+                <CopyPhoneBtn onClick={copyPhone} title={phoneCopied ? "Copied!" : "Copy number"} aria-label="Copy phone number">
+                  {phoneCopied
+                    ? <CheckIcon sx={{ fontSize: 15, color: colors.successGreen }} />
+                    : <ContentCopyIcon sx={{ fontSize: 15, color: colors.mutedText }} />}
+                </CopyPhoneBtn>
+              </PhoneTile>
               <Tile><WcIcon sx={{ color: colors.skyBlue, fontSize: 18 }} /><span>{driver.sex}</span></Tile>
               {age && <Tile><CalendarTodayIcon sx={{ color: colors.skyBlue, fontSize: 18 }} /><span>{age} years old</span></Tile>}
             </TileGrid>
@@ -752,5 +774,20 @@ const HistoryComment = styled.div`
   font-size: 0.84rem; color: ${colors.slateCharcoal};
   font-style: italic; line-height: 1.5;
   border-top: 1px solid ${colors.successGreen}22; padding-top: 10px; margin-top: 4px;
+`;
+
+/* ── Phone tile with tel: link + clipboard copy ── */
+const PhoneTile = styled.div`
+  display: flex; align-items: center; gap: 7px;
+  background: ${colors.lightBg}; border: 1px solid ${colors.border};
+  border-radius: 10px; padding: 8px 14px;
+  font-size: 0.88rem; color: ${colors.slateCharcoal};
+`;
+
+const CopyPhoneBtn = styled.button`
+  background: none; border: none; padding: 2px; cursor: pointer;
+  display: flex; align-items: center; margin-left: 2px;
+  border-radius: 4px; transition: background 0.12s;
+  &:hover { background: ${colors.border}; }
 `;
 

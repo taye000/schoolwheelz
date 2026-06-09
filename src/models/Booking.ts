@@ -57,8 +57,24 @@ export interface IBooking extends Document {
   isDeleted: boolean;
   /** Trip price in KES — set by driver when accepting */
   price?: number;
+  /** Timestamp when driver tapped "Start Trip" */
+  tripStartedAt?: Date;
+  /** Timestamp when driver tapped "End Trip" */
+  tripCompletedAt?: Date;
+  /** Actual trip duration in minutes (completedAt - startedAt) */
+  tripDurationMins?: number;
+  /** Straight-line distance between start and end GPS (km, haversine) */
+  tripDistanceKm?: number;
   tracking?: {
+    startLocation?: {
+      type: "Point";
+      coordinates: [number, number];
+    };
     currentLocation?: {
+      type: "Point";
+      coordinates: [number, number];
+    };
+    finalLocation?: {
       type: "Point";
       coordinates: [number, number];
     };
@@ -135,7 +151,15 @@ const BookingSchema: Schema = new Schema(
       morningTime: { type: String },
       eveningTime: { type: String, default: null },
     },
+    tripStartedAt: { type: Date, default: null },
+    tripCompletedAt: { type: Date, default: null },
+    tripDurationMins: { type: Number, default: null },
+    tripDistanceKm: { type: Number, default: null },
     tracking: {
+      startLocation: {
+        type: { type: String, enum: ["Point"] },
+        coordinates: { type: [Number] },
+      },
       currentLocation: {
         type: {
           type: String,
@@ -143,6 +167,10 @@ const BookingSchema: Schema = new Schema(
           default: "Point",
         },
         coordinates: { type: [Number], default: [0, 0] },
+      },
+      finalLocation: {
+        type: { type: String, enum: ["Point"] },
+        coordinates: { type: [Number] },
       },
       isTrackingEnabled: { type: Boolean, default: false },
       lastUpdated: { type: Date },

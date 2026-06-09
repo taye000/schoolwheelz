@@ -13,6 +13,23 @@ import { createNotification } from "@/utils/notify";
  * Driver taps "End Trip" — marks all children as dropped off,
  * sets status to completed, stops tracking, updates driver counters.
  */
+const haversineKm = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -56,7 +73,17 @@ export async function POST(
     });
 
     booking.status = "completed";
-    // Save status + children changes (don't touch tracking here)
+    (booking as any).tripCompletedAt = now;
+
+    // Calculate duration from tripStartedAt if available
+    const startedAt: Date | undefined = (booking as any).tripStartedAt;
+    if (startedAt) {
+      (booking as any).tripDurationMins = Math.round(
+        (now.getTime() - new Date(startedAt).getTime()) / 60000,
+      );
+    }
+
+    // Save status + children + timing changes (don't touch tracking here)
     await booking.save();
 
     // Parse optional final GPS position sent by the client
@@ -67,11 +94,25 @@ export async function POST(
     const hasLocation =
       typeof body.lat === "number" && typeof body.lng === "number";
 
+    // Get startLocation coordinates from booking tracking
+    const startCoords: [number, number] | undefined = (booking as any).tracking
+      ?.startLocation?.coordinates;
+    let distanceKm: number | undefined;
+    if (hasLocation && startCoords && startCoords.length === 2) {
+      // startCoords is [lng, lat] (GeoJSON order)
+      distanceKm =
+        Math.round(
+          haversineKm(startCoords[1], startCoords[0], body.lat!, body.lng!) *
+            10,
+        ) / 10;
+    }
+
     // Use $set dot-notation so we never touch tracking.currentLocation when absent
     await Booking.findByIdAndUpdate(params.id, {
       $set: {
         "tracking.isTrackingEnabled": false,
         "tracking.lastUpdated": now,
+        ...(distanceKm !== undefined && { tripDistanceKm: distanceKm }),
         ...(hasLocation && {
           "tracking.currentLocation": {
             type: "Point",
