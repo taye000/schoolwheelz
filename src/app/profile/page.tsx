@@ -492,7 +492,14 @@ export default function ProfilePage() {
         </Dialog>
         <LeftPane>
           {user.userType === "driver" && !editing ? (
-            <DriverViewCard user={user} onSchoolsUpdate={(schools) => setUser((prev) => prev ? { ...prev, schools } : prev)} />
+            <DriverViewCard
+              user={user}
+              onSchoolsUpdate={(schools) => setUser((prev) => prev ? { ...prev, schools } : prev)}
+              onOpenVerifyDialog={() => {
+                setVerifyOpen(true);
+                setVerifyMessage("");
+              }}
+            />
           ) : user.userType === "driver" && editing ? (
             <DriverEditCard
               user={user}
@@ -735,7 +742,7 @@ export default function ProfilePage() {
 
 /* ─── Driver sub-components ─── */
 
-function DriverViewCard({ user, onSchoolsUpdate }: { user: User; onSchoolsUpdate: (schools: SchoolItem[]) => void }) {
+function DriverViewCard({ user, onSchoolsUpdate, onOpenVerifyDialog }: { user: User; onSchoolsUpdate: (schools: SchoolItem[]) => void; onOpenVerifyDialog: () => void }) {
   const activeCar = user.cars?.find((c) => c.isActive);
   return (
     <DriverCard>
@@ -779,7 +786,7 @@ function DriverViewCard({ user, onSchoolsUpdate }: { user: User; onSchoolsUpdate
             {user.phoneVerified ? (
               <Chip icon={<VerifiedIcon sx={{ fontSize: "14px !important" }} />} label="Verified" size="small" color="success" sx={{ fontWeight: 600 }} />
             ) : (
-              <Button size="small" variant="outlined" onClick={() => { setVerifyOpen(true); setVerifyMessage(""); }} sx={{ borderRadius: "50px" }}>
+              <Button size="small" variant="outlined" onClick={onOpenVerifyDialog} sx={{ borderRadius: "50px" }}>
                 Verify phone
               </Button>
             )}
