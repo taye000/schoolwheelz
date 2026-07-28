@@ -20,6 +20,7 @@ export interface IParent extends Document {
   fullName: string;
   email: string;
   phoneNumber: string;
+  phoneVerified?: boolean;
   address: string;
   userType: UserType;
   password: string;
@@ -37,6 +38,7 @@ const ParentSchema: Schema = new Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true },
   phoneNumber: { type: String, required: true },
+  phoneVerified: { type: Boolean, default: false },
   address: { type: String, required: true },
   userType: {
     type: String,
