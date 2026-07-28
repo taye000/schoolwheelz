@@ -7,6 +7,9 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
 
+const isValidEmail = (value: string) => /.+@.+\..+/.test(value.trim());
+const isValidPhone = (value: string) => /^\+?[0-9]{7,15}$/.test(value.trim());
+
 export default function ContactPage() {
   const [form, setForm] = useState({ fullName: "", email: "", phoneNumber: "", message: "" });
   const [loading, setLoading] = useState(false);
@@ -17,8 +20,26 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.message.trim() || (!form.email.trim() && !form.phoneNumber.trim())) {
-      toast.error("Please provide a message and at least one contact method.");
+    const email = form.email.trim();
+    const phoneNumber = form.phoneNumber.trim();
+
+    if (!form.message.trim()) {
+      toast.error("Please provide a message.");
+      return;
+    }
+
+    if (!email && !phoneNumber) {
+      toast.error("Please provide at least one contact method.");
+      return;
+    }
+
+    if (email && !isValidEmail(email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    if (phoneNumber && !isValidPhone(phoneNumber)) {
+      toast.error("Please enter a valid phone number with digits only.");
       return;
     }
 
