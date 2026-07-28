@@ -44,6 +44,7 @@ import SchoolIcon from "@mui/icons-material/School";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import { colors } from "@/lib/theme";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 
 interface Stats {
   totalDrivers: number;
@@ -54,7 +55,7 @@ interface Stats {
   totalBookings: number;
 }
 
-type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools" | "billing" | "logs";
+type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools" | "billing" | "logs" | "contacts";
 
 const TABS: { label: string; value: TabView }[] = [
   { label: "Overview", value: "overview" },
@@ -68,6 +69,7 @@ const TABS: { label: string; value: TabView }[] = [
   { label: "Schools", value: "schools" },
   { label: "Billing", value: "billing" },
   { label: "Audit Logs", value: "logs" },
+  { label: "Contacts", value: "contacts" },
 ];
 
 export default function AdminPage() {
@@ -180,6 +182,7 @@ export default function AdminPage() {
         {activeTab === "schools" && <SchoolsTab />}
         {activeTab === "billing" && <BillingTab />}
         {activeTab === "logs" && <LogsTab />}
+        {activeTab === "contacts" && !loading && <ContactsTab rows={rows} />}
       </TabBody>
     </PageWrap>
   );
@@ -1238,6 +1241,64 @@ function LogDetailRow({ label, value, mono, copyable }: { label: string; value?:
           </Tooltip>
         )}
       </Box>
+    </Box>
+  );
+}
+
+function ContactsTab({ rows }: { rows: any[] }) {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const filtered = rows.filter((item) => {
+    const q = search.trim().toLowerCase();
+    const matchesSearch = !q || [item.fullName, item.email, item.phoneNumber, item.message].some((value) => String(value ?? "").toLowerCase().includes(q));
+    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  if (!rows.length) return <Empty>No contact messages found.</Empty>;
+
+  return (
+    <Box>
+      <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <TextField size="small" placeholder="Search name, email, phone or message…" value={search} onChange={(e) => setSearch(e.target.value)} sx={{ flex: 1, minWidth: 260 }} />
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Status</InputLabel>
+          <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="new">New</MenuItem>
+            <MenuItem value="replied">Replied</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+      <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${colors.border}`, borderRadius: 3 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Date</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Phone</TableCell>
+              <TableCell>Message</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filtered.map((contact) => (
+              <TableRow key={contact._id} hover>
+                <TableCell>{new Date(contact.createdAt).toLocaleString()}</TableCell>
+                <TableCell>{contact.fullName || "—"}</TableCell>
+                <TableCell>{contact.email || "—"}</TableCell>
+                <TableCell>{contact.phoneNumber || "—"}</TableCell>
+                <TableCell sx={{ maxWidth: 320 }}><Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{contact.message}</Typography></TableCell>
+                <TableCell>
+                  <Chip icon={<MailOutlineIcon />} label={contact.status === "replied" ? "Replied" : "New"} color={contact.status === "replied" ? "success" : "warning"} size="small" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   );
 }

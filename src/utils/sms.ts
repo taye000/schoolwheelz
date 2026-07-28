@@ -26,6 +26,37 @@ export interface SMSContext {
   triggeredBy?: string;
 }
 
+export interface EmailPayload {
+  to: string;
+  subject: string;
+  text: string;
+}
+
+export async function sendEmail(payload: EmailPayload): Promise<void> {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const endpoint = process.env.RESEND_API_URL;
+  const key = process.env.RESEND_API_KEY;
+
+  if (!adminEmail || !endpoint || !key) {
+    console.warn("Email configuration missing. Skipping admin notification.");
+    return;
+  }
+
+  await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: adminEmail,
+      to: payload.to,
+      subject: payload.subject,
+      text: payload.text,
+    }),
+  });
+}
+
 /** Persist an SMS log entry in the background — never throws */
 async function persistLog(
   to: string[],

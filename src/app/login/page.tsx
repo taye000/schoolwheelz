@@ -20,6 +20,8 @@ export default function LoginPage() {
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotMode, setForgotMode] = useState<"email" | "verify">("email");
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -65,6 +67,8 @@ export default function LoginPage() {
     setForgotPassword("");
     setForgotConfirmPassword("");
     setForgotPhoneNumber("");
+    setShowForgotPassword(false);
+    setShowForgotConfirmPassword(false);
     setForgotMessage("");
   };
 
@@ -84,7 +88,7 @@ export default function LoginPage() {
           setForgotPhoneNumber(response.data.phoneNumber || "");
           setForgotMessage(response.data.message || "A verification code was sent to your phone.");
         } else {
-          setForgotMessage(response.data.message || "Unable to send a reset code.");
+          setForgotMessage(response.data.message || "No account was found for that email.");
         }
         return;
       }
@@ -246,19 +250,49 @@ export default function LoginPage() {
                   />
                   <TextField
                     label="New password"
-                    type="password"
+                    type={showForgotPassword ? "text" : "password"}
                     value={forgotPassword}
                     onChange={(e) => setForgotPassword(e.target.value)}
                     fullWidth
                     required
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowForgotPassword((v) => !v)}
+                            edge="end"
+                            size="small"
+                            tabIndex={-1}
+                            aria-label={showForgotPassword ? "Hide password" : "Show password"}
+                          >
+                            {showForgotPassword ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
                   />
                   <TextField
                     label="Confirm new password"
-                    type="password"
+                    type={showForgotConfirmPassword ? "text" : "password"}
                     value={forgotConfirmPassword}
                     onChange={(e) => setForgotConfirmPassword(e.target.value)}
                     fullWidth
                     required
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowForgotConfirmPassword((v) => !v)}
+                            edge="end"
+                            size="small"
+                            tabIndex={-1}
+                            aria-label={showForgotConfirmPassword ? "Hide password" : "Show password"}
+                          >
+                            {showForgotConfirmPassword ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
                   />
                 </Stack>
               )}
