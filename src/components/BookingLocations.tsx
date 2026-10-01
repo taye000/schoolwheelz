@@ -3,13 +3,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Autocomplete as GoogleAutocomplete,
+  GoogleMap,
+  Marker,
   useJsApiLoader,
 } from "@react-google-maps/api";
 import {
   Button,
   CircularProgress,
   IconButton,
+  InputAdornment,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -18,9 +22,17 @@ import HistoryIcon from "@mui/icons-material/History";
 import PlaceIcon from "@mui/icons-material/Place";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import StarIcon from "@mui/icons-material/Star";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 import axios from "axios";
 import toast from "react-hot-toast";
 import styled from "styled-components";
+
+declare global {
+  interface Window {
+    gm_authFailure?: () => void;
+  }
+}
 
 export interface BookingAddress {
   label: string;
@@ -53,8 +65,14 @@ export default function BookingLocations({ onContinue }: BookingLocationsProps) 
   const [dropoffText, setDropoffText] = useState("");
   const [lists, setLists] = useState<AddressLists>(EMPTY_LISTS);
   const [saving, setSaving] = useState(false);
+  const [mapsAuthError, setMapsAuthError] = useState(false);
   const pickupAutocomplete = useRef<google.maps.places.Autocomplete | null>(null);
   const dropoffAutocomplete = useRef<google.maps.places.Autocomplete | null>(null);
+  const mapAutocomplete = useRef<google.maps.places.Autocomplete | null>(null);
+  const mapPickerRef = useRef<HTMLDivElement | null>(null);
+  const [mapTarget, setMapTarget] = useState<"pickup" | "dropoff" | null>(null);
+  const [mapQuery, setMapQuery] = useState("");
+  const [mapCandidate, setMapCandidate] = useState<BookingAddress | null>(null);
 
   useEffect(() => {
     axios
@@ -76,6 +94,19 @@ export default function BookingLocations({ onContinue }: BookingLocationsProps) 
       sessionStorage.removeItem("schoolwheelz.bookingLocations");
     }
   }, []);
+
+  useEffect(() => {
+    const previousHandler = window.gm_authFailure;
+    window.gm_authFailure = () => {
+      previousHandler?.();
+      setMapsAuthError(true);
+    };
+    return () => { window.gm_authFailure = previousHandler; };
+  }, []);
+
+  useEffect(() => {
+    if (mapTarget) mapPickerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [mapTarget]);
 
   const addressFromPlace = (place: google.maps.places.PlaceResult) => {
     const point = place.geometry?.location;
@@ -100,6 +131,24 @@ export default function BookingLocations({ onContinue }: BookingLocationsProps) 
       setDropoff(address);
       setDropoffText(address.label);
     }
+  };
+
+  const openMapPicker = (field: "pickup" | "dropoff") => {
+    setMapTarget(field);
+    setMapQuery(field === "pickup" ? pickupText : dropoffText);
+    setMapCandidate(field === "pickup" ? pickup : dropoff);
+  };
+
+  const useMapLocation = () => {
+    if (!mapTarget || !mapCandidate) return;
+    if (mapTarget === "pickup") {
+      setPickup(mapCandidate);
+      setPickupText(mapCandidate.label);
+    } else {
+      setDropoff(mapCandidate);
+      setDropoffText(mapCandidate.label);
+    }
+    setMapTarget(null);
   };
 
   const saveAddress = async (address: BookingAddress) => {
@@ -170,8 +219,8 @@ export default function BookingLocations({ onContinue }: BookingLocationsProps) 
         <PlaceIcon sx={{ color: "#20211E", fontSize: 30 }} />
       </PanelHeading>
 
-      {loadError ? (
-        <ErrorText>Google Maps search is unavailable. Check the Maps API key and Places API setup.</ErrorText>
+      {loadError || mapsAuthError || !process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+        <ErrorText>Google Maps search is unavailable. Check that the Maps JavaScript and Places APIs are enabled and the browser key allows this site.</ErrorText>
       ) : !isLoaded ? (
         <LoadingRow><CircularProgress size={18} /> Loading address search</LoadingRow>
       ) : (
@@ -192,6 +241,15 @@ export default function BookingLocations({ onContinue }: BookingLocationsProps) 
               placeholder="Home, gate, apartment..."
               value={pickupText}
               onChange={(event) => { setPickupText(event.target.value); setPickup(null); }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Tooltip title="Find this pick-up on the map">
+                      <span><IconButton edge="end" aria-label="Find pick-up on map" onClick={() => openMapPicker("pickup")} disabled={!pickupText.trim()}><MapOutlinedIcon /></IconButton></span>
+                    </Tooltip>
+                  </InputAdornment>
+                ),
+              }}
               fullWidth
               inputProps={{ "aria-label": "Pick-up address" }}
             />
@@ -212,11 +270,66 @@ export default function BookingLocations({ onContinue }: BookingLocationsProps) 
               placeholder="School or another destination"
               value={dropoffText}
               onChange={(event) => { setDropoffText(event.target.value); setDropoff(null); }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Tooltip title="Find this drop-off on the map">
+                      <span><IconButton edge="end" aria-label="Find drop-off on map" onClick={() => openMapPicker("dropoff")} disabled={!dropoffText.trim()}><MapOutlinedIcon /></IconButton></span>
+                    </Tooltip>
+                  </InputAdornment>
+                ),
+              }}
               fullWidth
               inputProps={{ "aria-label": "Drop-off address" }}
             />
           </GoogleAutocomplete>
         </AddressFields>
+      )}
+
+      {mapTarget && isLoaded && (
+        <MapPicker ref={mapPickerRef}>
+          <MapPickerHeader>
+            <div>
+              <MapPickerTitle>{mapTarget === "pickup" ? "Confirm pick-up" : "Confirm drop-off"}</MapPickerTitle>
+              <MapPickerHint>Search with Google Maps, then check the pin before using this address.</MapPickerHint>
+            </div>
+            <IconButton aria-label="Close map" onClick={() => setMapTarget(null)}><CloseIcon /></IconButton>
+          </MapPickerHeader>
+          <GoogleAutocomplete
+            onLoad={(autocomplete) => { mapAutocomplete.current = autocomplete; }}
+            options={{ componentRestrictions: { country: "ke" }, fields: ["formatted_address", "geometry", "place_id", "name"] }}
+            onPlaceChanged={() => {
+              const selected = addressFromPlace(mapAutocomplete.current?.getPlace() ?? {});
+              if (selected) {
+                setMapCandidate(selected);
+                setMapQuery(selected.label);
+              }
+            }}
+          >
+            <TextField
+              label="Search on Google Maps"
+              value={mapQuery}
+              onChange={(event) => { setMapQuery(event.target.value); setMapCandidate(null); }}
+              placeholder="Type an address or place name"
+              helperText="Choose a Google suggestion to verify the address."
+              fullWidth
+            />
+          </GoogleAutocomplete>
+          <GoogleMap
+            mapContainerStyle={{ width: "100%", height: "280px" }}
+            center={mapCandidate ? { lat: mapCandidate.lat, lng: mapCandidate.lng } : { lat: -1.2921, lng: 36.8219 }}
+            zoom={mapCandidate ? 16 : 12}
+            options={{ mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+          >
+            {mapCandidate && <Marker position={{ lat: mapCandidate.lat, lng: mapCandidate.lng }} />}
+          </GoogleMap>
+          <MapPickerFooter>
+            {mapCandidate && <MapAddress>{mapCandidate.label}</MapAddress>}
+            <Button variant="contained" onClick={useMapLocation} disabled={!mapCandidate}>
+              Use this {mapTarget} location
+            </Button>
+          </MapPickerFooter>
+        </MapPicker>
       )}
 
       {(lists.savedAddresses.length > 0 || lists.locationHistory.length > 0) && (
@@ -307,6 +420,45 @@ const AddressFields = styled.div`
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   @media (max-width: 620px) { grid-template-columns: 1fr; }
+`;
+
+const MapPicker = styled.div`
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #E4E2DA;
+  background: #FFFFFF;
+  scroll-margin: 20px;
+`;
+const MapPickerHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+`;
+const MapPickerTitle = styled.div`
+  color: #20211E;
+  font-size: 0.95rem;
+  font-weight: 800;
+`;
+const MapPickerHint = styled.p`
+  margin: 4px 0 0;
+  color: #646358;
+  font-size: 0.76rem;
+`;
+const MapPickerFooter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+const MapAddress = styled.span`
+  flex: 1 1 220px;
+  color: #35362F;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
 `;
 
 const AddressListsWrap = styled.div`

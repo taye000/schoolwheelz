@@ -36,6 +36,7 @@ const Footer: React.FC = () => {
                 <LinksGrid>
                     <LinkCol>
                         <ColTitle>App</ColTitle>
+                        <FooterLink href="/ride">Book a Ride</FooterLink>
                         <FooterLink href="/drivers">Browse Drivers</FooterLink>
                         <FooterLink href="/register">Register as Parent</FooterLink>
                         <FooterLink href="/driver-registration">Become a Driver</FooterLink>

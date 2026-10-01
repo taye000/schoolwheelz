@@ -48,7 +48,7 @@ export default function LoginPage() {
         const dest =
           formData.userType === "admin" ? "/admin" :
           formData.userType === "driver" ? "/bookings" :
-          "/drivers";
+          "/ride";
         router.push(dest);
       }
     } catch (error) {
