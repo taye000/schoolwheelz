@@ -5,6 +5,7 @@ import Driver from "@/models/DriversRegistration";
 import Parent from "@/models/ParentsRegistration";
 import Booking from "@/models/Booking";
 import School from "@/models/School";
+import Inquiry from "@/models/Inquiry";
 import Contact from "@/models/Contact";
 import { getAuthUser } from "@/utils/authApp";
 
@@ -138,6 +139,14 @@ export async function GET(req: NextRequest) {
           .sort({ createdAt: -1 })
           .lean();
         return NextResponse.json({ success: true, data: schools });
+      }
+
+      case "inquiries": {
+        const inquiries = await Inquiry.find({})
+          .sort({ createdAt: -1 })
+          .limit(100)
+          .lean();
+        return NextResponse.json({ success: true, data: inquiries });
       }
 
       case "contacts": {

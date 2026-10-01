@@ -59,7 +59,16 @@ export async function POST(
     };
     const boardedChildIds: string[] = body.boardedChildIds ?? [];
     const hasStartGPS =
-      typeof body.startLat === "number" && typeof body.startLng === "number";
+      typeof body.startLat === "number" && Number.isFinite(body.startLat) &&
+      typeof body.startLng === "number" && Number.isFinite(body.startLng) &&
+      body.startLat >= -90 && body.startLat <= 90 &&
+      body.startLng >= -180 && body.startLng <= 180;
+    if (!hasStartGPS) {
+      return NextResponse.json(
+        { success: false, message: "Allow location access before starting the trip." },
+        { status: 400 },
+      );
+    }
 
     const now = new Date();
     booking.children.forEach((child: any) => {
@@ -73,20 +82,16 @@ export async function POST(
     (booking as any).tripStartedAt = now;
     booking.tracking.isTrackingEnabled = true;
     booking.tracking.lastUpdated = now;
+    booking.tracking.currentLocation = {
+      type: "Point",
+      coordinates: [body.startLng!, body.startLat!],
+    };
+    booking.tracking.startLocation = {
+      type: "Point",
+      coordinates: [body.startLng!, body.startLat!],
+    };
     booking.markModified("tracking");
     await booking.save();
-
-    // Save start GPS via $set to avoid cast issues
-    if (hasStartGPS) {
-      await Booking.findByIdAndUpdate(params.id, {
-        $set: {
-          "tracking.startLocation": {
-            type: "Point",
-            coordinates: [body.startLng, body.startLat],
-          },
-        },
-      });
-    }
 
     // Update driver liveStatus
     await Driver.findByIdAndUpdate(user.id, { liveStatus: "on_trip" });

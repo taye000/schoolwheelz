@@ -17,8 +17,8 @@ export interface IBookedChild {
   age: number;
   school: string;
   gender: string;
-  pickupLocation?: { lat: number; lng: number };
-  dropoffLocation?: { lat: number; lng: number };
+  pickupLocation?: { lat: number; lng: number; label?: string };
+  dropoffLocation?: { lat: number; lng: number; label?: string };
   guardianNotes?: string; // e.g. "Ring doorbell, wait 2 mins"
   pickedUp?: boolean;
   droppedOff?: boolean;
@@ -31,6 +31,7 @@ export interface IBookedChild {
 
 export interface IBooking extends Document {
   bookingId: string;
+  requestKey?: string;
   bookingType: BookingType;
   /** Link to Schedule if this trip was auto-generated */
   schedule?: mongoose.Types.ObjectId;
@@ -93,10 +94,12 @@ const BookedChildSchema = new Schema(
     pickupLocation: {
       lat: { type: Number },
       lng: { type: Number },
+      label: { type: String },
     },
     dropoffLocation: {
       lat: { type: Number },
       lng: { type: Number },
+      label: { type: String },
     },
     guardianNotes: { type: String },
     pickedUp: { type: Boolean, default: false },
@@ -112,6 +115,7 @@ const BookedChildSchema = new Schema(
 const BookingSchema: Schema = new Schema(
   {
     bookingId: { type: String, required: true, unique: true },
+    requestKey: { type: String },
     bookingType: {
       type: String,
       enum: ["one_time", "recurring"],
@@ -183,6 +187,16 @@ const BookingSchema: Schema = new Schema(
 BookingSchema.index({ "tracking.currentLocation": "2dsphere" });
 BookingSchema.index({ parent: 1, tripDate: -1 });
 BookingSchema.index({ driver: 1, tripDate: -1, status: 1 });
+BookingSchema.index(
+  { parent: 1, requestKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["pending", "driver_assigned", "accepted", "in_progress"] },
+      requestKey: { $type: "string" },
+    },
+  },
+);
 
 export default mongoose.models.Booking ||
   mongoose.model<IBooking>("Booking", BookingSchema);

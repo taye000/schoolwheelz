@@ -44,6 +44,7 @@ import DriverSchoolsSection, { SchoolItem } from "@/components/DriverSchoolsSect
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
 import ImageUpload from "@/components/ImageUpload";
+import DriverDocumentsPanel from "@/components/DriverDocumentsPanel";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
@@ -89,6 +90,7 @@ interface User {
   isValidated?: boolean;
   verificationStatus?: "pending" | "approved" | "rejected" | "suspended";
   isProfileActive?: boolean;
+  liveStatus?: "offline" | "online" | "on_trip" | "unavailable";
   cars?: Car[];
   schools?: SchoolItem[];
   children?: Child[];
@@ -118,6 +120,7 @@ export default function ProfilePage() {
   const [showAddCar, setShowAddCar] = useState(false);
   const [newCar, setNewCar] = useState({ make: "", model: "", regNumber: "", photo: "", availableSeats: "" });
   const [addingCar, setAddingCar] = useState(false);
+  const [presenceSaving, setPresenceSaving] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyOtp, setVerifyOtp] = useState("");
@@ -374,6 +377,43 @@ export default function ProfilePage() {
     }
   };
 
+  const handlePresenceChange = async () => {
+    if (!user || user.userType !== "driver" || user.liveStatus === "on_trip") return;
+    const status = user.liveStatus === "online" ? "offline" : "online";
+    setPresenceSaving(true);
+    try {
+      let location: { lat: number; lng: number } | undefined;
+      if (status === "online") {
+        if (!navigator.geolocation) throw new Error("Location access is not available in this browser.");
+        const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+          }),
+        );
+        location = { lat: position.coords.latitude, lng: position.coords.longitude };
+      }
+      const response = await fetch(`/api/drivers/${user._id}/presence`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status, ...location }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message ?? "Could not update availability.");
+      setUser((previous) => previous ? { ...previous, liveStatus: result.data.liveStatus } : previous);
+      toast.success(status === "online" ? "You are now available to parents." : "You are now offline.");
+    } catch (error: any) {
+      toast.error(
+        error?.code === 1
+          ? "Allow location access to go online."
+          : error?.message ?? "Could not update availability.",
+      );
+    } finally {
+      setPresenceSaving(false);
+    }
+  };
+
   const handleRemoveCar = async (carId: string) => {
     if (!user) return;
     try {
@@ -493,8 +533,13 @@ export default function ProfilePage() {
         <LeftPane>
           {user.userType === "driver" && !editing ? (
             <DriverViewCard
+             
               user={user}
+              onPresenceChange={handlePresenceChange}
+              presenceSaving={presenceSaving}
+             
               onSchoolsUpdate={(schools) => setUser((prev) => prev ? { ...prev, schools } : prev)}
+           
               onOpenVerifyDialog={() => {
                 setVerifyOpen(true);
                 setVerifyMessage("");
@@ -742,7 +787,17 @@ export default function ProfilePage() {
 
 /* ─── Driver sub-components ─── */
 
-function DriverViewCard({ user, onSchoolsUpdate, onOpenVerifyDialog }: { user: User; onSchoolsUpdate: (schools: SchoolItem[]) => void; onOpenVerifyDialog: () => void }) {
+function DriverViewCard({
+  user,
+  onPresenceChange,
+  presenceSaving,
+  onSchoolsUpdate, onOpenVerifyDialog,
+}: {
+  user: User;
+  onPresenceChange: () => void;
+  presenceSaving: boolean;
+  onSchoolsUpdate: (schools: SchoolItem[]) => void; onOpenVerifyDialog: () => void;
+}) {
   const activeCar = user.cars?.find((c) => c.isActive);
   return (
     <DriverCard>
@@ -776,6 +831,25 @@ function DriverViewCard({ user, onSchoolsUpdate, onOpenVerifyDialog }: { user: U
           </RatingPill>
         )}
       </Box>
+
+      <PresenceRow>
+        <div>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: colors.deepNavy }}>
+            {user.liveStatus === "on_trip" ? "Trip in progress" : user.liveStatus === "online" ? "Available for bookings" : "Not available"}
+          </Typography>
+          <Typography variant="caption" sx={{ color: colors.mutedText }}>
+            Upload the required documents and allow location access to go online. Trip tracking starts when a trip begins.
+          </Typography>
+        </div>
+        <Button
+          variant="contained"
+          size="small"
+          onClick={onPresenceChange}
+          disabled={presenceSaving || user.liveStatus === "on_trip" || (!user.isProfileActive && user.liveStatus !== "online")}
+        >
+          {presenceSaving ? "Updating..." : user.liveStatus === "online" ? "Go offline" : user.liveStatus === "on_trip" ? "On trip" : "Go online"}
+        </Button>
+      </PresenceRow>
 
       <InfoRow><Label>Email</Label><Value>{user.email}</Value></InfoRow>
       <InfoRow>
@@ -814,6 +888,8 @@ function DriverViewCard({ user, onSchoolsUpdate, onOpenVerifyDialog }: { user: U
           <span>Your account is suspended. Contact support.</span>
         </ValidationNotice>
       )}
+
+      <DriverDocumentsPanel driverId={user._id} />
 
       {/* Cars */}
       <Divider sx={{ my: 3 }} />
@@ -1156,6 +1232,22 @@ const HeaderActions = styled.div`
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+`;
+
+const PresenceRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid ${colors.border};
+  border-left: 4px solid #F2C230;
+  background: #FFFDF6;
+  @media (max-width: 520px) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 `;
 
 const ContentGrid = styled.div<{ singleCol?: boolean }>`

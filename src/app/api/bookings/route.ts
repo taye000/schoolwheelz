@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { createHash } from "crypto";
 import dbConnect from "@/utils/dbConnect";
 import Booking from "@/models/Booking";
 import Driver from "@/models/DriversRegistration";
@@ -8,6 +9,24 @@ import Parent from "@/models/ParentsRegistration";
 import { getAuthUser, AuthenticatedUser } from "@/utils/authApp";
 import { generateBookingId } from "@/utils/generateBookingID";
 import { createNotification } from "@/utils/notify";
+
+function normalizeBookingLocation(value: any) {
+  if (
+    !value ||
+    !Number.isFinite(value.lat) ||
+    !Number.isFinite(value.lng) ||
+    value.lat < -90 ||
+    value.lat > 90 ||
+    value.lng < -180 ||
+    value.lng > 180
+  ) return null;
+
+  return {
+    lat: value.lat,
+    lng: value.lng,
+    label: typeof value.label === "string" ? value.label.trim() : undefined,
+  };
+}
 
 export async function POST(req: NextRequest) {
   await dbConnect();
@@ -35,6 +54,8 @@ export async function POST(req: NextRequest) {
       endDate,
       morningTime,
       eveningTime,
+      pickupLocation,
+      dropoffLocation,
     } = await req.json();
 
     const driver = await Driver.findById(driverId);
@@ -51,38 +72,122 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
 
-    const validChildIds = parent.children.map((c: any) => c._id?.toString());
-    const isValid = children.every((c: any) =>
-      validChildIds.includes(c._id?.toString()),
+    if (!Array.isArray(children) || children.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Select at least one child." },
+        { status: 400 },
+      );
+    }
+
+    const childIds = children.map((child: any) => child?._id?.toString());
+    const uniqueChildIds = Array.from(new Set(childIds));
+    const selectedChildren = parent.children.filter((child: any) =>
+      uniqueChildIds.includes(child._id?.toString()),
     );
-    if (!isValid)
+    if (
+      childIds.some((id: string | undefined) => !id) ||
+      uniqueChildIds.length !== childIds.length ||
+      selectedChildren.length !== uniqueChildIds.length
+    ) {
       return NextResponse.json(
         { success: false, message: "Invalid child selection" },
         { status: 400 },
       );
+    }
+
+    const normalizedPickup = normalizeBookingLocation(pickupLocation);
+    const normalizedDropoff = normalizeBookingLocation(dropoffLocation);
+    const hasPickup = pickupLocation !== undefined && pickupLocation !== null;
+    const hasDropoff = dropoffLocation !== undefined && dropoffLocation !== null;
+    if (hasPickup !== hasDropoff || (hasPickup && (!normalizedPickup || !normalizedDropoff))) {
+      return NextResponse.json(
+        { success: false, message: "Enter valid pick-up and drop-off locations." },
+        { status: 400 },
+      );
+    }
+
+    const bookedChildren = selectedChildren.map((child: any) => ({
+      childRef: child._id,
+      name: child.name,
+      age: child.age,
+      school: child.school,
+      gender: child.gender,
+      pickupLocation: normalizedPickup ?? child.pickupLocation,
+      dropoffLocation: normalizedDropoff ?? child.dropoffLocation,
+    }));
+    const activeDuplicateCandidates = await Booking.find({
+      parent: user.id,
+      driver: driver._id,
+      bookingType,
+      status: { $in: ["pending", "driver_assigned", "accepted", "in_progress"] },
+      "children.childRef": { $all: selectedChildren.map((child: any) => child._id) },
+      children: { $size: selectedChildren.length },
+    }).select("tripDate direction returnTime recurringMeta");
 
     if (bookingType === "recurring") {
-      // Validate recurring fields
-      if (!recurringDays?.length || !startDate || !morningTime) {
+      if (!recurringDays?.length || !startDate || !endDate || !morningTime) {
         return NextResponse.json(
           {
             success: false,
             message:
-              "recurringDays, startDate, and morningTime are required for recurring bookings.",
+              "recurringDays, startDate, endDate, and morningTime are required for term bookings.",
           },
           { status: 400 },
         );
       }
 
-      // Build the first tripDate from startDate + morningTime
-      const firstDate = new Date(`${startDate}T${morningTime}:00`);
+      const start = new Date(`${startDate}T${morningTime}:00`);
+      const end = new Date(`${endDate}T23:59:59`);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+        return NextResponse.json(
+          { success: false, message: "Enter a valid term date range." },
+          { status: 400 },
+        );
+      }
+
+      const requestedDays = Array.from(new Set(recurringDays)).sort();
+      const duplicate = activeDuplicateCandidates.some((candidate) => {
+        const existingDays = [...(candidate.recurringMeta?.days ?? [])].sort();
+        return (
+          candidate.recurringMeta?.startDate === startDate &&
+          candidate.recurringMeta?.endDate === endDate &&
+          candidate.recurringMeta?.morningTime === morningTime &&
+          candidate.recurringMeta?.eveningTime === (eveningTime || null) &&
+          candidate.direction === direction &&
+          existingDays.length === requestedDays.length &&
+          existingDays.every((day, index) => day === requestedDays[index])
+        );
+      });
+      if (duplicate) {
+        return NextResponse.json(
+          { success: false, message: "This term booking is already active." },
+          { status: 409 },
+        );
+      }
+
+      const requestKey = createHash("sha256")
+        .update(JSON.stringify({
+          driverId: driver._id.toString(),
+          childIds: uniqueChildIds.sort(),
+          bookingType,
+          direction,
+          startDate,
+          endDate,
+          requestedDays,
+          morningTime,
+          eveningTime: eveningTime || null,
+        }))
+        .digest("hex");
+
+      const firstDate = start;
 
       const booking = await Booking.create({
         driver: driver._id,
         parent: user.id,
-        children,
-        seatsBooked,
+        children: bookedChildren,
+        seatsBooked: bookedChildren.length,
         bookingType: "recurring",
+        requestKey,
         direction,
         tripDate: firstDate,
         status: "pending",
@@ -123,14 +228,46 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
 
+    const requestedTripDate = new Date(tripDate);
+    if (Number.isNaN(requestedTripDate.getTime())) {
+      return NextResponse.json(
+        { success: false, message: "Enter a valid trip date." },
+        { status: 400 },
+      );
+    }
+    const duplicate = activeDuplicateCandidates.some(
+      (candidate) =>
+        candidate.tripDate.getTime() === requestedTripDate.getTime() &&
+        candidate.direction === direction &&
+        candidate.returnTime === (returnTime || null),
+    );
+    if (duplicate) {
+      return NextResponse.json(
+        { success: false, message: "This booking request is already active." },
+        { status: 409 },
+      );
+    }
+
+    const requestKey = createHash("sha256")
+      .update(JSON.stringify({
+        driverId: driver._id.toString(),
+        childIds: uniqueChildIds.sort(),
+        bookingType,
+        direction,
+        tripDate: requestedTripDate.toISOString(),
+        returnTime: returnTime || null,
+      }))
+      .digest("hex");
+
     const booking = await Booking.create({
       driver: driver._id,
       parent: user.id,
-      children,
-      seatsBooked,
+      children: bookedChildren,
+      seatsBooked: bookedChildren.length,
       bookingType: "one_time",
+      requestKey,
       direction,
-      tripDate: new Date(tripDate),
+      tripDate: requestedTripDate,
       returnTime: returnTime || null,
       status: "pending",
       bookingId: generateBookingId(),
@@ -149,6 +286,12 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ success: true, data: booking }, { status: 201 });
   } catch (error) {
+    if ((error as any)?.code === 11000) {
+      return NextResponse.json(
+        { success: false, message: "This booking request is already active." },
+        { status: 409 },
+      );
+    }
     console.error(error);
     return NextResponse.json(
       { success: false, message: "Server error" },

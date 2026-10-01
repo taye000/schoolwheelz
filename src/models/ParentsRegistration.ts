@@ -5,6 +5,12 @@ import { UserType } from "../../types/usertype";
 export interface IChildLocation {
   lat: number;
   lng: number;
+  label?: string;
+}
+
+export interface IParentAddress extends IChildLocation {
+  label: string;
+  placeId?: string;
 }
 
 export interface IChild {
@@ -28,6 +34,8 @@ export interface IParent extends Document {
   children: IChild[];
   /** Driver _ids the parent has marked as preferred */
   favoriteDrivers: mongoose.Types.ObjectId[];
+  savedAddresses: IParentAddress[];
+  locationHistory: IParentAddress[];
   billingPreference?: {
     period: "weekly" | "monthly";
     channel: "sms" | "email" | "both";
@@ -63,6 +71,20 @@ const ParentSchema: Schema = new Schema({
   ],
   password: { type: String, required: true },
   favoriteDrivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Driver" }],
+  savedAddresses: [{
+    _id: false,
+    label: { type: String, required: true },
+    placeId: { type: String },
+    lat: { type: Number, required: true },
+    lng: { type: Number, required: true },
+  }],
+  locationHistory: [{
+    _id: false,
+    label: { type: String, required: true },
+    placeId: { type: String },
+    lat: { type: Number, required: true },
+    lng: { type: Number, required: true },
+  }],
   billingPreference: {
     period: { type: String, enum: ["weekly", "monthly"], default: "monthly" },
     channel: { type: String, enum: ["sms", "email", "both"], default: "email" },

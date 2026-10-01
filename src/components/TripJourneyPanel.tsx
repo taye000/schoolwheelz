@@ -138,19 +138,14 @@ export default function TripJourneyPanel({ booking, onBookingUpdate }: Props) {
   const handleStartTrip = async () => {
     setStarting(true);
     try {
-      // Capture GPS at start for distance tracking
-      let startGPS: { startLat: number; startLng: number } | undefined;
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 5000,
-          })
-        );
-        startGPS = { startLat: pos.coords.latitude, startLng: pos.coords.longitude };
-      } catch {
-        // GPS unavailable — proceed without
-      }
+      if (!navigator.geolocation) throw new Error("Location access is not available in this browser.");
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+        })
+      );
+      const startGPS = { startLat: pos.coords.latitude, startLng: pos.coords.longitude };
 
       await axios.post(
         `/api/bookings/${bookingId}/start`,
@@ -160,7 +155,11 @@ export default function TripJourneyPanel({ booking, onBookingUpdate }: Props) {
       toast.success("Trip started! Parent can now track you.");
       onBookingUpdate({ status: "in_progress" });
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Failed to start trip.");
+      toast.error(
+        err?.code === 1
+          ? "Allow location access before starting the trip."
+          : err?.response?.data?.message ?? err?.message ?? "Failed to start trip.",
+      );
     } finally {
       setStarting(false);
     }
