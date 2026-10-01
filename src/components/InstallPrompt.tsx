@@ -28,35 +28,49 @@ export default function InstallPrompt() {
     useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const [ios, setIos] = useState(false);
+  const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
-    if (isInStandaloneMode()) return;
-    if (sessionStorage.getItem("pwa-prompt-dismissed")) return;
-
+    const alreadyInstalled = isInStandaloneMode();
     const onIos = isIos();
+    setInstalled(alreadyInstalled);
     setIos(onIos);
 
-    if (onIos) {
-      setTimeout(() => setVisible(true), 3500);
-      return;
+    const openPrompt = () => {
+      setInstalled(isInStandaloneMode());
+      setVisible(true);
+    };
+    window.addEventListener("open-install-prompt", openPrompt);
+
+    if (!alreadyInstalled && !sessionStorage.getItem("pwa-prompt-dismissed") && onIos) {
+      const timer = setTimeout(() => setVisible(true), 3500);
+      return () => {
+        window.removeEventListener("open-install-prompt", openPrompt);
+        clearTimeout(timer);
+      };
     }
 
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setTimeout(() => setVisible(true), 3500);
+      if (!sessionStorage.getItem("pwa-prompt-dismissed")) {
+        setTimeout(() => setVisible(true), 3500);
+      }
     };
 
-    window.addEventListener("beforeinstallprompt", handler);
+    if (!alreadyInstalled && !onIos && !sessionStorage.getItem("pwa-prompt-dismissed")) {
+      window.addEventListener("beforeinstallprompt", handler);
+    }
 
     // DEV fallback: show prompt after 4s even without service worker
     let devTimer: ReturnType<typeof setTimeout> | null = null;
-    if (process.env.NODE_ENV === "development") {
+    if (!alreadyInstalled && !onIos && !sessionStorage.getItem("pwa-prompt-dismissed") && process.env.NODE_ENV === "development") {
       devTimer = setTimeout(() => setVisible(true), 4000);
     }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("open-install-prompt", openPrompt);
       if (devTimer) clearTimeout(devTimer);
     };
   }, []);
@@ -66,8 +80,8 @@ export default function InstallPrompt() {
       await deferredPrompt.prompt();
       await deferredPrompt.userChoice;
       setDeferredPrompt(null);
+      setVisible(false);
     }
-    setVisible(false);
   };
 
   const handleDismiss = () => {
@@ -96,7 +110,7 @@ export default function InstallPrompt() {
             : "Install for quick, offline-ready access — no App Store needed."}
         </Typography>
       </TextBlock>
-      {!ios && (
+      {!ios && !installed && deferredPrompt && (
         <Button
           variant="contained"
           size="small"
@@ -106,6 +120,10 @@ export default function InstallPrompt() {
           Install
         </Button>
       )}
+      {!ios && !installed && !deferredPrompt && (
+        <InstallHint>Open your browser menu and choose Install app or Add to Home Screen.</InstallHint>
+      )}
+      {installed && <InstallHint>The app is already installed on this device.</InstallHint>}
       <IconButton size="small" onClick={handleDismiss} aria-label="Dismiss">
         <CloseIcon sx={{ fontSize: 18, color: colors.mutedText }} />
       </IconButton>
@@ -151,4 +169,12 @@ const IconWrap = styled.div`
 const TextBlock = styled.div`
   flex: 1;
   min-width: 0;
+`;
+
+const InstallHint = styled.p`
+  max-width: 142px;
+  margin: 0;
+  color: ${colors.mutedText};
+  font-size: 0.72rem;
+  line-height: 1.35;
 `;

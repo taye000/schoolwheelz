@@ -11,7 +11,7 @@ import { colors } from "@/lib/theme";
  *
  * Checks auth and routes to the right destination:
  *   • not authenticated  → /login
- *   • parent             → /drivers   (find a driver)
+ *   • parent             → /ride      (start a booking)
  *   • driver             → /profile
  *   • admin              → /admin
  */
@@ -24,7 +24,7 @@ export default function AppLaunchPage() {
       .then((data) => {
         if (!data.success) { router.replace("/login"); return; }
         const t = data.user?.userType;
-        if (t === "parent") router.replace("/drivers");
+        if (t === "parent") router.replace("/ride");
         else if (t === "driver") router.replace("/profile");
         else if (t === "admin") router.replace("/admin");
         else router.replace("/login");
