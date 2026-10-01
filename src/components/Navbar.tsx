@@ -173,10 +173,28 @@ const Navbar: React.FC = () => {
                         </IconButton>
                     </DrawerHeader>
                     <List sx={{ flex: 1 }}>
+                        {user ? (
+                            <>
+                                <Link href={profileHref} style={{ textDecoration: "none" }}>
+                                    <ListItem onClick={toggleDrawer(false)} sx={{ borderRadius: "10px", mb: 1, bgcolor: colors.lightBg }}>
+                                        <Avatar sx={{ width: 36, height: 36, bgcolor: user.userType === "admin" ? colors.warningAmber : colors.skyBlue, fontSize: "0.85rem", mr: 1.5 }}>
+                                            {user.fullName?.charAt(0).toUpperCase()}
+                                        </Avatar>
+                                        <ListItemText
+                                            primary={user.fullName}
+                                            secondary={user.userType === "admin" ? "Admin Dashboard" : "View profile"}
+                                            primaryTypographyProps={{ fontWeight: 700, color: colors.deepNavy }}
+                                            secondaryTypographyProps={{ color: colors.mutedText }}
+                                        />
+                                    </ListItem>
+                                </Link>
+                                <Divider sx={{ my: 1 }} />
+                            </>
+                        ) : null}
                         {[
                             ...(user?.userType !== "driver" ? [{ href: "/drivers", label: "Drivers" }] : []),
-                            ...(user?.userType === "parent" ? [{ href: "/bookings", label: "My Bookings" }, { href: "/profile", label: "My Profile" }] : []),
-                            ...(user?.userType === "driver" ? [{ href: "/bookings", label: "My Bookings" }, { href: "/trips", label: "My Trips" }, { href: "/profile", label: "My Profile" }] : []),
+                            ...(user?.userType === "parent" ? [{ href: "/bookings", label: "My Bookings" }] : []),
+                            ...(user?.userType === "driver" ? [{ href: "/bookings", label: "My Bookings" }, { href: "/trips", label: "My Trips" }] : []),
                             ...(user?.userType === "admin" ? [{ href: "/admin", label: "Admin Dashboard" }] : []),
                             ...(!user ? [{ href: "/drivers", label: "Drivers" }, { href: "/register", label: "Register as Parent" }, { href: "/driver-registration", label: "Become a Driver" }] : []),
                         ].map((item) => (

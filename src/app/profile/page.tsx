@@ -17,6 +17,10 @@ import {
   Alert,
   Tooltip,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 import EditIcon from "@mui/icons-material/Edit";
@@ -75,6 +79,7 @@ interface User {
   fullName: string;
   email: string;
   phoneNumber: string;
+  phoneVerified?: boolean;
   address?: string;
   photo?: string;
   sex?: string;
@@ -116,6 +121,10 @@ export default function ProfilePage() {
   const [newCar, setNewCar] = useState({ make: "", model: "", regNumber: "", photo: "", availableSeats: "" });
   const [addingCar, setAddingCar] = useState(false);
   const [presenceSaving, setPresenceSaving] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyOtp, setVerifyOtp] = useState("");
+  const [verifyMessage, setVerifyMessage] = useState("");
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -214,6 +223,57 @@ export default function ProfilePage() {
       children: (prev.children ?? []).filter((_, i) => i !== idx),
     }));
     setChildMapOpen((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleVerifyPhone = async () => {
+    if (!user) return;
+    setVerifyLoading(true);
+    setVerifyMessage("");
+    try {
+      const res = await fetch("/api/auth/verify-phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: user.email, userType: user.userType }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setVerifyMessage(data.message || "Verification code sent to your phone.");
+      } else {
+        setVerifyMessage(data.message || "Unable to send verification code.");
+      }
+    } catch {
+      setVerifyMessage("Network error. Please try again.");
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleConfirmVerification = async () => {
+    if (!user) return;
+    setVerifyLoading(true);
+    setVerifyMessage("");
+    try {
+      const res = await fetch("/api/auth/verify-phone", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: user.email, userType: user.userType, otp: verifyOtp }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser((prev) => prev ? { ...prev, phoneVerified: true } : prev);
+        setVerifyOpen(false);
+        setVerifyOtp("");
+        toast.success("Phone verified successfully.");
+      } else {
+        setVerifyMessage(data.message || "Verification failed.");
+      }
+    } catch {
+      setVerifyMessage("Network error. Please try again.");
+    } finally {
+      setVerifyLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -443,13 +503,47 @@ export default function ProfilePage() {
       </PageHeader>
 
       <ContentGrid singleCol={user.userType === "parent" && !editing ? true : user.userType === "driver" ? false : true}>
+        <Dialog open={verifyOpen} onClose={() => setVerifyOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>Verify your phone</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" sx={{ color: colors.mutedText, mb: 2 }}>
+              Enter the OTP we sent to your phone to verify your account.
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Button variant="outlined" onClick={handleVerifyPhone} disabled={verifyLoading}>
+                {verifyLoading ? "Sending…" : "Send OTP"}
+              </Button>
+              <TextField
+                label="OTP"
+                value={verifyOtp}
+                onChange={(e) => setVerifyOtp(e.target.value)}
+                fullWidth
+                required
+              />
+              {verifyMessage && <Typography variant="body2" sx={{ color: colors.deepNavy }}>{verifyMessage}</Typography>}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setVerifyOpen(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleConfirmVerification} disabled={verifyLoading}>
+              {verifyLoading ? "Verifying…" : "Submit OTP"}
+            </Button>
+          </DialogActions>
+        </Dialog>
         <LeftPane>
           {user.userType === "driver" && !editing ? (
             <DriverViewCard
+             
               user={user}
               onPresenceChange={handlePresenceChange}
               presenceSaving={presenceSaving}
+             
               onSchoolsUpdate={(schools) => setUser((prev) => prev ? { ...prev, schools } : prev)}
+           
+              onOpenVerifyDialog={() => {
+                setVerifyOpen(true);
+                setVerifyMessage("");
+              }}
             />
           ) : user.userType === "driver" && editing ? (
             <DriverEditCard
@@ -627,7 +721,21 @@ export default function ProfilePage() {
               </Typography>
               <Chip label="Parent" size="small" sx={{ bgcolor: colors.mintCream, color: colors.deepNavy, fontWeight: 600, mb: 2 }} />
               <InfoRow><Label>Email</Label><Value>{user.email}</Value></InfoRow>
-              <InfoRow><Label>Phone</Label><Value>{user.phoneNumber}</Value></InfoRow>
+              <InfoRow>
+                <Label>Phone</Label>
+                <Value>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    <span>{user.phoneNumber}</span>
+                    {user.phoneVerified ? (
+                      <Chip icon={<VerifiedIcon sx={{ fontSize: "14px !important" }} />} label="Verified" size="small" color="success" sx={{ fontWeight: 600 }} />
+                    ) : (
+                      <Button size="small" variant="outlined" onClick={() => { setVerifyOpen(true); setVerifyMessage(""); }} sx={{ borderRadius: "50px" }}>
+                        Verify phone
+                      </Button>
+                    )}
+                  </Box>
+                </Value>
+              </InfoRow>
               {user.address && <InfoRow><Label>Address</Label><Value>{user.address}</Value></InfoRow>}
 
               {user.children && user.children.length > 0 && (
@@ -683,12 +791,12 @@ function DriverViewCard({
   user,
   onPresenceChange,
   presenceSaving,
-  onSchoolsUpdate,
+  onSchoolsUpdate, onOpenVerifyDialog,
 }: {
   user: User;
   onPresenceChange: () => void;
   presenceSaving: boolean;
-  onSchoolsUpdate: (schools: SchoolItem[]) => void;
+  onSchoolsUpdate: (schools: SchoolItem[]) => void; onOpenVerifyDialog: () => void;
 }) {
   const activeCar = user.cars?.find((c) => c.isActive);
   return (
@@ -744,7 +852,21 @@ function DriverViewCard({
       </PresenceRow>
 
       <InfoRow><Label>Email</Label><Value>{user.email}</Value></InfoRow>
-      <InfoRow><Label>Phone</Label><Value>{user.phoneNumber}</Value></InfoRow>
+      <InfoRow>
+        <Label>Phone</Label>
+        <Value>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+            <span>{user.phoneNumber}</span>
+            {user.phoneVerified ? (
+              <Chip icon={<VerifiedIcon sx={{ fontSize: "14px !important" }} />} label="Verified" size="small" color="success" sx={{ fontWeight: 600 }} />
+            ) : (
+              <Button size="small" variant="outlined" onClick={onOpenVerifyDialog} sx={{ borderRadius: "50px" }}>
+                Verify phone
+              </Button>
+            )}
+          </Box>
+        </Value>
+      </InfoRow>
       {user.sex && <InfoRow><Label>Sex</Label><Value>{user.sex}</Value></InfoRow>}
       {user.licenseNumber && <InfoRow><Label>License</Label><Value>{user.licenseNumber}</Value></InfoRow>}
 

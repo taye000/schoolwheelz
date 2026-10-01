@@ -66,6 +66,7 @@ export interface IDriver extends Document {
   dob: Date;
   email: string;
   phoneNumber: string;
+  phoneVerified?: boolean;
   photo?: string;
   sex: string;
   password: string;
@@ -180,6 +181,7 @@ const DriverSchema: Schema = new Schema(
     dob: { type: Date, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
     phoneNumber: { type: String, required: true },
+    phoneVerified: { type: Boolean, default: false },
     photo: { type: String },
     sex: { type: String, required: true },
     password: { type: String, required: true },

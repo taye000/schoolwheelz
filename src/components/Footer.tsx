@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Typography, IconButton } from "@mui/material";
+import { Typography, IconButton, Button } from "@mui/material";
 import styled from "styled-components";
 import FacebookIcon from "@mui/icons-material/Facebook";
 import TwitterIcon from "@mui/icons-material/Twitter";
@@ -40,10 +40,11 @@ const Footer: React.FC = () => {
                         <FooterLink href="/register">Register as Parent</FooterLink>
                         <FooterLink href="/driver-registration">Become a Driver</FooterLink>
                         <FooterLink href="/login">Sign In</FooterLink>
+                        <FooterLink href="#" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new Event("open-install-prompt")); }}>Install App</FooterLink>
                     </LinkCol>
                     <LinkCol>
                         <ColTitle>Company</ColTitle>
-                        <FooterLink href="#">About Us</FooterLink>
+                        <FooterLink href="/contact">Contact Us</FooterLink>
                         <FooterLink href="#">Safety</FooterLink>
                         <FooterLink href="#">Privacy Policy</FooterLink>
                         <FooterLink href="#">Terms of Service</FooterLink>

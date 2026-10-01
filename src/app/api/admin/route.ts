@@ -6,6 +6,7 @@ import Parent from "@/models/ParentsRegistration";
 import Booking from "@/models/Booking";
 import School from "@/models/School";
 import Inquiry from "@/models/Inquiry";
+import Contact from "@/models/Contact";
 import { getAuthUser } from "@/utils/authApp";
 
 function requireAdmin(req: NextRequest) {
@@ -21,7 +22,7 @@ function requireAdmin(req: NextRequest) {
 }
 
 /**
- * GET /api/admin?view=stats|drivers|parents|validation-queue|active-drivers|bookings|cars|children
+ * GET /api/admin?view=stats|drivers|parents|validation-queue|active-drivers|bookings|cars|children|contacts
  */
 export async function GET(req: NextRequest) {
   const authResult = requireAdmin(req);
@@ -146,6 +147,11 @@ export async function GET(req: NextRequest) {
           .limit(100)
           .lean();
         return NextResponse.json({ success: true, data: inquiries });
+      }
+
+      case "contacts": {
+        const contacts = await Contact.find({}).sort({ createdAt: -1 }).lean();
+        return NextResponse.json({ success: true, data: contacts });
       }
 
       // billing and logs have their own dedicated routes; return empty here
