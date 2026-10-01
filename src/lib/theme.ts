@@ -3,30 +3,30 @@ import { createTheme } from "@mui/material/styles";
 // Color palette
 export const colors = {
   // Brand
-  deepNavy: "#1A365D", // primary brand, manifest theme
-  slateCharcoal: "#2D3748", // primary text
-  skyBlue: "#4299E1", // route/path, interactive
-  mintCream: "#9AE6B4", // child icon / safe green
+  deepNavy: "#20211E", // primary text
+  slateCharcoal: "#35362F", // secondary text
+  skyBlue: "#876600", // accessible gold for links and controls
+  mintCream: "#F2C230", // primary brand yellow
   pureWhite: "#FFFFFF", // main canvas
   // Extended
-  lightBg: "#F7FAFC", // page background
-  border: "#E2E8F0",
-  mutedText: "#718096",
-  successGreen: "#38A169",
-  warningAmber: "#D69E2E",
+  lightBg: "#FFFCF2", // page background
+  border: "#E6E0D0",
+  mutedText: "#646358",
+  successGreen: "#2F7D54",
+  warningAmber: "#9A6B00",
   errorRed: "#E53E3E",
 };
 
 export const theme = createTheme({
   palette: {
     primary: {
-      main: colors.deepNavy,
-      light: colors.skyBlue,
-      contrastText: "#FFFFFF",
+      main: colors.mintCream,
+      light: "#F8D96C",
+      contrastText: colors.deepNavy,
     },
     secondary: {
-      main: colors.mintCream,
-      contrastText: colors.slateCharcoal,
+      main: "#2F6D58",
+      contrastText: "#FFFFFF",
     },
     text: {
       primary: colors.slateCharcoal,
@@ -61,9 +61,10 @@ export const theme = createTheme({
           padding: "10px 24px",
         },
         containedPrimary: {
-          background: `linear-gradient(135deg, ${colors.deepNavy} 0%, ${colors.skyBlue} 100%)`,
+          background: colors.mintCream,
+          color: colors.deepNavy,
           "&:hover": {
-            background: `linear-gradient(135deg, ${colors.skyBlue} 0%, ${colors.deepNavy} 100%)`,
+            background: "#E3B31D",
           },
         },
       },

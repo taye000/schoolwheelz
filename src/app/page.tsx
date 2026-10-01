@@ -9,22 +9,28 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import StarIcon from "@mui/icons-material/Star";
 import SchoolIcon from "@mui/icons-material/School";
 import { colors } from "@/lib/theme";
+import InquiryForm from "@/components/InquiryForm";
 
 const features = [
   {
     icon: <ShieldIcon sx={{ fontSize: 40, color: colors.mintCream }} />,
-    title: "Safe & Verified",
-    desc: "All drivers are background-checked and licensed professionals.",
+    title: "School-route drivers",
+    desc: "Browse driver profiles by school and route details before choosing who to contact.",
   },
   {
     icon: <LocationOnIcon sx={{ fontSize: 40, color: colors.skyBlue }} />,
-    title: "Live Tracking",
-    desc: "Track your child's route in real-time, every step of the way.",
+    title: "Live trip updates",
+    desc: "See the driver's shared location while a trip is active and location access is enabled.",
   },
   {
     icon: <StarIcon sx={{ fontSize: 40, color: colors.warningAmber ?? "#D69E2E" }} />,
-    title: "Rated Drivers",
-    desc: "Choose from community-rated drivers with transparent reviews.",
+    title: "Doorstep pickup",
+    desc: "Choose a pickup point at home so children do not need to walk out to find the vehicle.",
+  },
+  {
+    icon: <SchoolIcon sx={{ fontSize: 40, color: colors.mintCream }} />,
+    title: "Familiar ride companions",
+    desc: "Term schedules make it easier for children to share regular rides with their school community.",
   },
 ];
 
@@ -50,7 +56,7 @@ export default function HomePage() {
           </BusBadge>
           <HeroTitle variant="h1">
             Safe Rides for<br />
-            <span style={{ color: colors.skyBlue }}>Every Child.</span>
+            <span style={{ color: colors.mintCream }}>Every Child.</span>
           </HeroTitle>
           <HeroSubtitle variant="subtitle1">
             Connect with verified school drivers, book trips, and track
@@ -74,7 +80,7 @@ export default function HomePage() {
           <SectionTitle variant="h2">Built for parents. Trusted by schools.</SectionTitle>
           <Grid container spacing={4} sx={{ mt: 2 }}>
             {features.map((f, i) => (
-              <Grid item xs={12} md={4} key={i}>
+              <Grid item xs={12} sm={6} md={3} key={i}>
                 <FeatureCard>
                   <IconWrap>{f.icon}</IconWrap>
                   <FeatureTitle variant="h5">{f.title}</FeatureTitle>
@@ -111,6 +117,12 @@ export default function HomePage() {
         </SchoolsSection>
       )}
 
+      <InquirySection>
+        <Container maxWidth="md">
+          <InquiryForm />
+        </Container>
+      </InquirySection>
+
       {/* CTA Banner */}
       <CTABanner>
         <Container maxWidth="md" sx={{ textAlign: "center" }}>
@@ -118,7 +130,7 @@ export default function HomePage() {
             Ready to get started?
           </Typography>
           <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.85)", mb: 4 }}>
-            Join thousands of families who trust School Wheelz every morning.
+            Join families planning a reliable school commute with School Wheelz.
           </Typography>
           <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
             <Button
@@ -165,11 +177,7 @@ const HeroSection = styled.section`
 const HeroOverlay = styled.div`
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(26, 54, 93, 0.88) 0%,
-    rgba(66, 153, 225, 0.55) 100%
-  );
+  background: linear-gradient(100deg, rgba(24, 25, 22, 0.82), rgba(24, 25, 22, 0.18));
 `;
 
 const HeroContent = styled.div`
@@ -225,15 +233,15 @@ const HeroCTA = styled.div`
 
 const PrimaryButton = styled(Button)`
   && {
-    background: linear-gradient(135deg, ${skyBlue}, ${deepNavy});
-    color: #fff;
+    background: ${colors.mintCream};
+    color: ${deepNavy};
     font-size: 1rem;
     padding: 14px 32px;
     border-radius: 50px;
-    box-shadow: 0 4px 20px rgba(66,153,225,0.5);
+    box-shadow: 0 4px 20px rgba(242, 194, 48, 0.28);
     &:hover {
-      background: linear-gradient(135deg, ${deepNavy}, ${skyBlue});
-      box-shadow: 0 6px 24px rgba(26,54,93,0.5);
+      background: #E3B31D;
+      box-shadow: 0 6px 24px rgba(32, 33, 30, 0.2);
     }
   }
 `;
@@ -256,6 +264,11 @@ const SecondaryButton = styled(Button)`
 const FeaturesSection = styled.section`
   padding: 96px 24px;
   background-color: ${colors.pureWhite};
+`;
+
+const InquirySection = styled.section`
+  padding: 64px 24px;
+  background: #F6EBC3;
 `;
 
 const SectionLabel = styled.p`
@@ -318,7 +331,7 @@ const FeatureDesc = styled(Typography)`
 `;
 
 const CTABanner = styled.section`
-  background: linear-gradient(135deg, ${deepNavy} 0%, #2a69ac 100%);
+  background: linear-gradient(135deg, ${deepNavy} 0%, #454333 100%);
   padding: 96px 24px;
 `;
 

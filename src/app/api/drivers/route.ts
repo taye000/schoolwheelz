@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const schoolId = searchParams.get("school"); // filter by school ObjectId
     const q = searchParams.get("q")?.trim(); // free-text: driver name or estate
 
-    const filter: Record<string, unknown> = { isProfileActive: true };
+    const filter: Record<string, unknown> = { isProfileActive: true, liveStatus: "online" };
     if (schoolId) filter.schools = schoolId;
     if (q) {
       filter.$or = [

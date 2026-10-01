@@ -22,6 +22,7 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import toast from "react-hot-toast";
 import { colors } from "@/lib/theme";
+import DriverDocumentsPanel from "@/components/DriverDocumentsPanel";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -238,6 +239,8 @@ export default function AdminDriverDetailPage() {
               <NoDoc>No documents uploaded yet.</NoDoc>
             )}
           </Section>
+
+          <DriverDocumentsPanel driverId={driver._id} editable={false} />
 
           {/* Cars */}
           <Section>

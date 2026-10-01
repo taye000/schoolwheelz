@@ -54,7 +54,7 @@ interface Stats {
   totalBookings: number;
 }
 
-type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools" | "billing" | "logs";
+type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools" | "inquiries" | "billing" | "logs";
 
 const TABS: { label: string; value: TabView }[] = [
   { label: "Overview", value: "overview" },
@@ -66,6 +66,7 @@ const TABS: { label: string; value: TabView }[] = [
   { label: "Bookings", value: "bookings" },
   { label: "Cars", value: "cars" },
   { label: "Schools", value: "schools" },
+  { label: "Inquiries", value: "inquiries" },
   { label: "Billing", value: "billing" },
   { label: "Audit Logs", value: "logs" },
 ];
@@ -178,10 +179,47 @@ export default function AdminPage() {
         {activeTab === "cars" && !loading && <CarsTable rows={rows} />}
 
         {activeTab === "schools" && <SchoolsTab />}
+        {activeTab === "inquiries" && !loading && <InquiriesTable rows={rows} />}
         {activeTab === "billing" && <BillingTab />}
         {activeTab === "logs" && <LogsTab />}
       </TabBody>
     </PageWrap>
+  );
+}
+
+function InquiriesTable({ rows }: { rows: any[] }) {
+  if (!rows.length) return <Empty>No inquiries yet.</Empty>;
+  return (
+    <StyledTable>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Received</TableCell>
+            <TableCell>Contact</TableCell>
+            <TableCell>School</TableCell>
+            <TableCell>Message</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((inquiry) => (
+            <TableRow key={inquiry._id} hover>
+              <TableCell sx={{ whiteSpace: "nowrap" }}>
+                {new Date(inquiry.createdAt).toLocaleDateString()}
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>{inquiry.name}</Typography>
+                {inquiry.email && <Typography component="a" href={`mailto:${inquiry.email}`} variant="caption" display="block">{inquiry.email}</Typography>}
+                {inquiry.phone && <Typography component="a" href={`tel:${inquiry.phone}`} variant="caption" display="block">{inquiry.phone}</Typography>}
+              </TableCell>
+              <TableCell>{inquiry.school || "-"}</TableCell>
+              <TableCell sx={{ minWidth: 260, maxWidth: 520, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                {inquiry.message}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </StyledTable>
   );
 }
 

@@ -11,6 +11,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 import SchoolIcon from "@mui/icons-material/School";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import BookingLocations from "@/components/BookingLocations";
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
@@ -23,8 +24,17 @@ export default function DriversPage() {
   const [selectedSchool, setSelectedSchool] = useState("");
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isParent, setIsParent] = useState(false);
+  const [locationsReady, setLocationsReady] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pageSize = 12;
+
+  useEffect(() => {
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((response) => response.json())
+      .then((data) => setIsParent(data.success && data.user?.userType === "parent"))
+      .catch(() => setIsParent(false));
+  }, []);
 
   // Debounce the search input 350 ms
   useEffect(() => {
@@ -67,14 +77,15 @@ export default function DriversPage() {
 
   return (
     <PageWrapper>
+      {isParent && <BookingLocations onContinue={() => setLocationsReady(true)} />}
+      {(!isParent || locationsReady) && <>
       <PageHeader>
         <div>
           <Typography variant="h4" sx={{ fontWeight: 700, color: colors.deepNavy, mb: 0.5 }}>
             Find a Driver
           </Typography>
           <Typography variant="body2" sx={{ color: colors.mutedText }}>
-            All drivers are background-checked and rated by parents.
-            Pick one that serves your child&apos;s school.
+            Browse driver profiles and school routes, then choose a term ride that fits your family.
           </Typography>
         </div>
         <SearchBadge>
@@ -179,6 +190,7 @@ export default function DriversPage() {
           </PaginationBtn>
         </Pagination>
       )}
+      </>}
     </PageWrapper>
   );
 }

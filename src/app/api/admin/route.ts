@@ -5,6 +5,7 @@ import Driver from "@/models/DriversRegistration";
 import Parent from "@/models/ParentsRegistration";
 import Booking from "@/models/Booking";
 import School from "@/models/School";
+import Inquiry from "@/models/Inquiry";
 import { getAuthUser } from "@/utils/authApp";
 
 function requireAdmin(req: NextRequest) {
@@ -137,6 +138,14 @@ export async function GET(req: NextRequest) {
           .sort({ createdAt: -1 })
           .lean();
         return NextResponse.json({ success: true, data: schools });
+      }
+
+      case "inquiries": {
+        const inquiries = await Inquiry.find({})
+          .sort({ createdAt: -1 })
+          .limit(100)
+          .lean();
+        return NextResponse.json({ success: true, data: inquiries });
       }
 
       // billing and logs have their own dedicated routes; return empty here

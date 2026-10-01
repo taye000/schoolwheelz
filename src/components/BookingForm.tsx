@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   FormControlLabel,
@@ -43,10 +44,14 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const WEEKDAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
+  const router = useRouter();
   const [selectedChildren, setSelectedChildren] = useState<Child[]>([]);
+  const [bookingLocations, setBookingLocations] = useState<{
+    pickup: { label: string; lat: number; lng: number };
+    dropoff: { label: string; lat: number; lng: number };
+  } | null>(null);
 
-  // Trip type: one_time | recurring
-  const [bookingType, setBookingType] = useState<"one_time" | "recurring">("one_time");
+  const [bookingType, setBookingType] = useState<"one_time" | "recurring">("recurring");
 
   // one_time fields
   const [tripDate, setTripDate] = useState("");
@@ -66,6 +71,15 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
 
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("schoolwheelz.bookingLocations");
+      if (stored) setBookingLocations(JSON.parse(stored));
+    } catch {
+      sessionStorage.removeItem("schoolwheelz.bookingLocations");
+    }
+  }, []);
+
   const toggleChild = (child: Child) => {
     setSelectedChildren((prev) =>
       prev.find((c) => c._id === child._id)
@@ -83,7 +97,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
   const isValid = () => {
     if (!selectedChildren.length) return false;
     if (bookingType === "one_time") return !!tripDate && !!pickupTime;
-    return !!recurringStartDate && !!recurringMorningTime && recurringDays.length > 0;
+    return !!recurringStartDate && !!recurringEndDate && !!recurringMorningTime && recurringDays.length > 0;
   };
 
   const handleSubmit = async () => {
@@ -106,6 +120,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
         bookingType,
         direction,
       };
+      if (bookingLocations) {
+        payload.pickupLocation = bookingLocations.pickup;
+        payload.dropoffLocation = bookingLocations.dropoff;
+      }
 
       if (bookingType === "one_time") {
         // Combine date + time into a single ISO datetime
@@ -134,6 +152,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
       setIncludeReturn(false);
       setRecurringStartDate("");
       setRecurringEndDate("");
+      router.push("/bookings");
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Failed to submit booking.");
     } finally {
@@ -145,6 +164,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
 
   return (
     <FormWrap>
+      {bookingLocations && (
+        <LocationSummary>
+          <div><strong>Pick-up</strong> {bookingLocations.pickup.label}</div>
+          <div><strong>Drop-off</strong> {bookingLocations.dropoff.label}</div>
+        </LocationSummary>
+      )}
       {/* ── Children ── */}
       <FieldGroup>
         <FieldLabel>Children</FieldLabel>
@@ -308,7 +333,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
           </FieldGroup>
 
           <FieldGroup>
-            <FieldLabel>End Date <Optional>(optional)</Optional></FieldLabel>
+            <FieldLabel>Term End Date</FieldLabel>
             <TextField
               type="date"
               size="small"
@@ -380,6 +405,18 @@ const FormWrap = styled.div`
   display: flex;
   flex-direction: column;
   gap: 14px;
+`;
+
+const LocationSummary = styled.div`
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border-left: 3px solid #F2C230;
+  background: #FFFDF6;
+  color: ${colors.deepNavy};
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+  strong { display: inline-block; min-width: 64px; }
 `;
 
 const FieldGroup = styled.div`
