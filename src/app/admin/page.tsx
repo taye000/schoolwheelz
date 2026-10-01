@@ -55,7 +55,7 @@ interface Stats {
   totalBookings: number;
 }
 
-type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools" | "billing" | "logs" | "contacts";
+type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools" | "inquiries" | "billing" | "logs" | "contacts";
 
 const TABS: { label: string; value: TabView }[] = [
   { label: "Overview", value: "overview" },
