@@ -176,6 +176,7 @@ export default function RideRequestWizard() {
   const mapRef = useRef<MapRef>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
+  const [parentAuthenticated, setParentAuthenticated] = useState(false);
   const [schoolId, setSchoolId] = useState("");
   const [recentSchoolId, setRecentSchoolId] = useState("");
   const [schoolIsDestination, setSchoolIsDestination] = useState(true);
@@ -207,9 +208,11 @@ export default function RideRequestWizard() {
       axios.get("/api/schools"),
       axios.get("/api/parents/locations", { withCredentials: true }).catch(() => null),
       axios.get("/api/bookings?limit=50", { withCredentials: true }).catch(() => null),
+      axios.get("/api/auth/me", { withCredentials: true }).catch(() => null),
     ])
-      .then(([schoolResponse, locationResponse, bookingResponse]) => {
+      .then(([schoolResponse, locationResponse, bookingResponse, authResponse]) => {
         if (!active) return;
+        setParentAuthenticated(authResponse?.data?.success && authResponse.data.user?.userType === "parent");
         const availableSchools: School[] = schoolResponse.data.success ? schoolResponse.data.data : [];
         setSchools(availableSchools);
         const history: Address[] = locationResponse?.data?.success
@@ -590,8 +593,13 @@ export default function RideRequestWizard() {
                 <TextField type="time" label="Preferred time" value={tripTime} onChange={(event) => { scheduleTouched.current = true; setTripTime(event.target.value); }} InputLabelProps={{ shrink: true }} />
               </ScheduleFields>
             )}
-            <GoButton onClick={findDrivers} disabled={!canSearch}>
-              {searching ? <><CircularProgress size={22} sx={{ color: "#20211E", mr: 1 }} /> Looking for drivers...</> : <>GO <ArrowForwardIcon /></>}
+            <GoButton
+              onClick={() => parentAuthenticated ? void findDrivers() : router.push("/login?returnTo=%2Fride")}
+              disabled={!canSearch || searching}
+            >
+              {searching
+                ? <><CircularProgress size={22} sx={{ color: "#20211E", mr: 1 }} /> Looking for drivers...</>
+                : parentAuthenticated ? <>GO <ArrowForwardIcon /></> : <>Sign in to continue <ArrowForwardIcon /></>}
             </GoButton>
             {matchError && <ErrorText>{matchError}</ErrorText>}
             {matches && matches.length > 0 && (
