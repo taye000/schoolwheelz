@@ -87,7 +87,7 @@ const Navbar: React.FC = () => {
                     </Link>
 
                     <NavLinks>
-                        {user?.userType === "parent" && <NavLink href="/ride">Book a Ride</NavLink>}
+                        {(!user || user.userType === "parent") && <NavLink href="/ride">Book a Ride</NavLink>}
                         {user?.userType !== "driver" && <NavLink href="/drivers">Browse Drivers</NavLink>}
                         {user?.userType === "parent" && <NavLink href="/bookings">My Bookings</NavLink>}
                         {user?.userType === "driver" && <NavLink href="/bookings">My Bookings</NavLink>}
@@ -192,7 +192,7 @@ const Navbar: React.FC = () => {
                             </>
                         ) : null}
                         {[
-                            ...(user?.userType === "parent" ? [{ href: "/ride", label: "Book a Ride" }] : []),
+                            ...(!user || user.userType === "parent" ? [{ href: "/ride", label: "Book a Ride" }] : []),
                             ...(user?.userType !== "driver" ? [{ href: "/drivers", label: "Browse Drivers" }] : []),
                             ...(user?.userType === "parent" ? [{ href: "/bookings", label: "My Bookings" }] : []),
                             ...(user?.userType === "driver" ? [{ href: "/bookings", label: "My Bookings" }, { href: "/trips", label: "My Trips" }] : []),
