@@ -8,6 +8,7 @@ import { getAuthUser } from "@/utils/authApp";
 import { sendSMS, SmsTemplates } from "@/utils/sms";
 import { log } from "@/utils/audit";
 import { createNotification } from "@/utils/notify";
+import { bookingsShareTripSlot } from "@/utils/bookingSlots";
 
 export async function PATCH(
   req: NextRequest,
@@ -49,6 +50,12 @@ export async function PATCH(
         { success: false, message: "Booking already processed" },
         { status: 400 },
       );
+    if (booking.adminReviewStatus && booking.adminReviewStatus !== "approved") {
+      return NextResponse.json(
+        { success: false, message: "This booking is still awaiting admin review." },
+        { status: 409 },
+      );
+    }
 
     const driver = await Driver.findById(user.id);
     if (!driver)
@@ -56,6 +63,35 @@ export async function PATCH(
         { success: false, message: "Driver not found" },
         { status: 404 },
       );
+
+    const activeCar = driver.cars.find((car: any) => car.isActive);
+    if (!activeCar) {
+      return NextResponse.json(
+        { success: false, message: "Set an active vehicle before accepting bookings." },
+        { status: 409 },
+      );
+    }
+    const reservations = await Booking.find({
+      driver: user.id,
+      status: { $in: ["accepted", "in_progress"] },
+      isDeleted: false,
+    }).select("bookingType tripDate recurringMeta direction returnTime seatsBooked");
+    const committedSeats = reservations
+      .filter((reservation: any) =>
+        reservation._id.toString() !== booking._id.toString() &&
+        bookingsShareTripSlot(booking, reservation),
+      )
+      .reduce((total: number, reservation: any) => total + (reservation.seatsBooked ?? 0), 0);
+    const remainingSeats = activeCar.availableSeats - committedSeats;
+    if (booking.seatsBooked > remainingSeats) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Only ${Math.max(0, remainingSeats)} seat${remainingSeats === 1 ? "" : "s"} remain for this slot.`,
+        },
+        { status: 409 },
+      );
+    }
 
     booking.status = "accepted";
     if (price !== undefined) booking.price = price;

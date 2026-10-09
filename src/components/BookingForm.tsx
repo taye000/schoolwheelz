@@ -42,6 +42,7 @@ interface BookingFormProps {
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const WEEKDAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+type BookingDuration = "semester" | "month" | "week" | "one_off";
 
 const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
   const router = useRouter();
@@ -49,6 +50,15 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
   const [bookingLocations, setBookingLocations] = useState<{
     pickup: { label: string; lat: number; lng: number };
     dropoff: { label: string; lat: number; lng: number };
+  } | null>(null);
+  const [bookingContext, setBookingContext] = useState<{
+    schoolId: string;
+    schoolName: string;
+    duration: BookingDuration;
+    startDate: string;
+    endDate?: string;
+    tripTime: string;
+    direction: "morning" | "evening";
   } | null>(null);
 
   const [bookingType, setBookingType] = useState<"one_time" | "recurring">("recurring");
@@ -75,6 +85,25 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
     try {
       const stored = sessionStorage.getItem("schoolwheelz.bookingLocations");
       if (stored) setBookingLocations(JSON.parse(stored));
+      const contextValue = sessionStorage.getItem("schoolwheelz.bookingContext");
+      if (contextValue) {
+        const context = JSON.parse(contextValue);
+        setBookingContext(context);
+        if (context.duration === "one_off") {
+          setBookingType("one_time");
+          setTripDate(context.startDate ?? "");
+          setPickupTime(context.tripTime ?? "07:00");
+        } else {
+          setBookingType("recurring");
+          setRecurringStartDate(context.startDate ?? "");
+          setRecurringEndDate(context.endDate ?? "");
+          setRecurringMorningTime(context.tripTime ?? "07:00");
+        }
+        const firstChildAtSchool = parent.children?.find(
+          (child) => child.school.toLowerCase() === String(context.schoolName).toLowerCase(),
+        );
+        if (firstChildAtSchool) setSelectedChildren([firstChildAtSchool]);
+      }
     } catch {
       sessionStorage.removeItem("schoolwheelz.bookingLocations");
     }
@@ -107,17 +136,19 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
     }
     setLoading(true);
     try {
-      const direction =
+      const direction = bookingContext?.direction ?? (
         (bookingType === "one_time" && includeReturn) ||
         (bookingType === "recurring" && includeRecurringEvening)
           ? "both"
-          : "morning";
+          : "morning"
+      );
 
       const payload: any = {
         driverId,
         children: selectedChildren,
         seatsBooked: selectedChildren.length,
         bookingType,
+        bookingDuration: bookingContext?.duration ?? (bookingType === "one_time" ? "one_off" : "semester"),
         direction,
       };
       if (bookingLocations) {
@@ -127,7 +158,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
 
       if (bookingType === "one_time") {
         // Combine date + time into a single ISO datetime
-        const dt = new Date(`${tripDate}T${pickupTime}:00`);
+        const dt = new Date(`${tripDate}T${pickupTime}:00+03:00`);
         payload.tripDate = dt.toISOString();
         if (includeReturn) payload.returnTime = returnTime;
       } else {
@@ -135,7 +166,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
         payload.startDate = recurringStartDate;
         payload.endDate = recurringEndDate || undefined;
         payload.morningTime = recurringMorningTime;
-        if (includeRecurringEvening) payload.eveningTime = recurringEveningTime;
+        if (bookingContext?.direction === "evening") payload.eveningTime = recurringMorningTime;
+        else if (includeRecurringEvening) payload.eveningTime = recurringEveningTime;
       }
 
       await axios.post("/api/bookings", payload, { withCredentials: true });
@@ -168,6 +200,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
         <LocationSummary>
           <div><strong>Pick-up</strong> {bookingLocations.pickup.label}</div>
           <div><strong>Drop-off</strong> {bookingLocations.dropoff.label}</div>
+        </LocationSummary>
+      )}
+      {bookingContext && (
+        <LocationSummary>
+          <div><strong>School</strong> {bookingContext.schoolName}</div>
+          <div><strong>Duration</strong> {bookingContext.duration.replace("_", " ")}</div>
         </LocationSummary>
       )}
       {/* ── Children ── */}
@@ -205,7 +243,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
       <Divider sx={{ my: 0.5 }} />
 
       {/* ── Trip type toggle ── */}
-      <FieldGroup>
+      {!bookingContext && <FieldGroup>
         <FieldLabel>Trip Type</FieldLabel>
         <TypeToggle>
           <TypeBtn
@@ -223,7 +261,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ parent, driverId }) => {
             Recurring
           </TypeBtn>
         </TypeToggle>
-      </FieldGroup>
+      </FieldGroup>}
 
       {/* ── One-time fields ── */}
       {bookingType === "one_time" && (

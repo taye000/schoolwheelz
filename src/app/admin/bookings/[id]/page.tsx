@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import styled from "styled-components";
-import { Typography, CircularProgress, Chip, Divider } from "@mui/material";
+import { Typography, CircularProgress, Chip, Divider, Button, TextField } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ChildCareIcon from "@mui/icons-material/ChildCare";
 import PersonPinCircleIcon from "@mui/icons-material/PersonPinCircle";
@@ -29,8 +29,13 @@ interface IBooking {
   _id: string;
   bookingId: string;
   bookingType: string;
+  bookingDuration?: string;
   direction: string;
   status: string;
+  adminReviewStatus?: string;
+  adminReviewNote?: string;
+  totalAmount?: number;
+  dueDate?: string;
   tripDate: string;
   seatsBooked: number;
   children: IBookedChild[];
@@ -54,15 +59,52 @@ export default function AdminBookingDetailPage() {
   const router = useRouter();
   const [booking, setBooking] = useState<IBooking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [totalAmount, setTotalAmount] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [reviewNote, setReviewNote] = useState("");
 
   useEffect(() => {
     if (!id) return;
     axios
       .get(`/api/bookings?id=${id}`, { withCredentials: true })
-      .then((res) => { if (res.data.success) setBooking(res.data.data); })
+      .then((res) => {
+        if (res.data.success) {
+          setBooking(res.data.data);
+          setTotalAmount(res.data.data.totalAmount == null ? "" : String(res.data.data.totalAmount));
+          setDueDate(res.data.data.dueDate ? new Date(res.data.data.dueDate).toISOString().slice(0, 10) : "");
+          setReviewNote(res.data.data.adminReviewNote ?? "");
+        }
+      })
       .catch(() => toast.error("Could not load booking."))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleReview = async (decision: "approve" | "reject") => {
+    if (decision === "approve" && (!totalAmount || !dueDate || Number(totalAmount) < 0)) {
+      toast.error("Enter the booking total and payment due date.");
+      return;
+    }
+    if (decision === "reject" && !reviewNote.trim()) {
+      toast.error("Add a reason before rejecting this request.");
+      return;
+    }
+    setReviewSaving(true);
+    try {
+      const response = await axios.patch(`/api/bookings/${id}/review`, {
+        decision,
+        totalAmount: Number(totalAmount),
+        dueDate,
+        note: reviewNote.trim(),
+      }, { withCredentials: true });
+      setBooking(response.data.data);
+      toast.success(decision === "approve" ? "Approved. Driver has been notified." : "Request rejected.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message ?? "Could not review this request.");
+    } finally {
+      setReviewSaving(false);
+    }
+  };
 
   if (loading) return <Center><CircularProgress sx={{ color: colors.deepNavy }} /></Center>;
   if (!booking) return <Center><Typography>Booking not found.</Typography></Center>;
@@ -94,6 +136,28 @@ export default function AdminBookingDetailPage() {
         />
       </HeaderRow>
 
+      {booking.adminReviewStatus === "awaiting_admin" && (
+        <Section>
+          <SectionTitle>Review booking and billing</SectionTitle>
+          <Typography variant="body2" sx={{ color: colors.mutedText, mb: 2 }}>
+            The driver will receive this request only after approval.
+          </Typography>
+          <ReviewFields>
+            <TextField label="Booking total (KES)" type="number" value={totalAmount} onChange={(event) => setTotalAmount(event.target.value)} inputProps={{ min: 0, step: 1 }} />
+            <TextField label="Payment due date" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} InputLabelProps={{ shrink: true }} />
+          </ReviewFields>
+          <TextField label="Review note or rejection reason" value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} multiline minRows={2} fullWidth sx={{ mt: 1.5 }} />
+          <ReviewActions>
+            <Button variant="outlined" color="error" onClick={() => handleReview("reject")} disabled={reviewSaving}>
+              Reject request
+            </Button>
+            <Button variant="contained" onClick={() => handleReview("approve")} disabled={reviewSaving}>
+              {reviewSaving ? "Saving..." : "Approve and notify driver"}
+            </Button>
+          </ReviewActions>
+        </Section>
+      )}
+
       <TwoCol>
         {/* Left */}
         <div>
@@ -101,6 +165,10 @@ export default function AdminBookingDetailPage() {
             <SectionTitle>Trip Info</SectionTitle>
             <InfoGrid>
               <InfoRow label="Type" value={booking.bookingType === "recurring" ? "Recurring Subscription" : "One-Time"} />
+              <InfoRow label="Duration" value={(booking.bookingDuration ?? (booking.bookingType === "recurring" ? "semester" : "one_off")).replace("_", " ")} />
+              {booking.adminReviewStatus && <InfoRow label="Admin review" value={booking.adminReviewStatus.replace("_", " ")} />}
+              {booking.totalAmount != null && <InfoRow label="Booking total" value={`KES ${booking.totalAmount.toLocaleString()}`} />}
+              {booking.dueDate && <InfoRow label="Due date" value={new Date(booking.dueDate).toLocaleDateString("en-GB")} />}
               <InfoRow label="Direction" value={
                 booking.direction === "both" ? "Morning & Evening" :
                 booking.direction === "morning" ? "Morning Pickup" : "Evening Dropoff"
@@ -240,6 +308,20 @@ const TwoCol = styled.div`
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   @media (max-width: 800px) { grid-template-columns: 1fr; }
+`;
+
+const ReviewFields = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+`;
+
+const ReviewActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
 `;
 
 const Section = styled.div`

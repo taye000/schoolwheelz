@@ -87,6 +87,10 @@ interface User {
   licenseNumber?: string;
   idNumber?: string;
   averageRating?: number;
+  ratingCount?: number;
+  totalTrips?: number;
+  completedTrips?: number;
+  cancellations?: number;
   isValidated?: boolean;
   verificationStatus?: "pending" | "approved" | "rejected" | "suspended";
   isProfileActive?: boolean;
@@ -851,6 +855,21 @@ function DriverViewCard({
         </Button>
       </PresenceRow>
 
+      <DriverMetrics>
+        <DriverMetric>
+          <strong>{user.completedTrips ?? user.totalTrips ?? 0}</strong>
+          <span>Trips done</span>
+        </DriverMetric>
+        <DriverMetric>
+          <strong>{user.averageRating ? user.averageRating.toFixed(1) : "—"}</strong>
+          <span>Rating ({user.ratingCount ?? 0})</span>
+        </DriverMetric>
+        <DriverMetric>
+          <strong>{user.cancellations ?? 0}</strong>
+          <span>Cancellations</span>
+        </DriverMetric>
+      </DriverMetrics>
+
       <InfoRow><Label>Email</Label><Value>{user.email}</Value></InfoRow>
       <InfoRow>
         <Label>Phone</Label>
@@ -1248,6 +1267,23 @@ const PresenceRow = styled.div`
     align-items: flex-start;
     flex-direction: column;
   }
+`;
+
+const DriverMetrics = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+`;
+
+const DriverMetric = styled.div`
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid ${colors.border};
+  background: #FFFFFF;
+  strong { color: ${colors.deepNavy}; font-size: 1.1rem; }
+  span { color: ${colors.mutedText}; font-size: 0.7rem; }
 `;
 
 const ContentGrid = styled.div<{ singleCol?: boolean }>`

@@ -1,16 +1,13 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import BookingLocations from "@/components/BookingLocations";
+import RideRequestWizard from "@/components/RideRequestWizard";
 
 export default function RidePage() {
-  const router = useRouter();
-
   return (
     <PageWrap>
-      <BookingLocations onContinue={() => router.push("/drivers")} />
+      <RideRequestWizard />
     </PageWrap>
   );
 }

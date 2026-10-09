@@ -45,6 +45,7 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import { colors } from "@/lib/theme";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import AdminHolidayManager from "@/components/AdminHolidayManager";
 
 interface Stats {
   totalDrivers: number;
@@ -55,7 +56,7 @@ interface Stats {
   totalBookings: number;
 }
 
-type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools" | "inquiries" | "billing" | "logs" | "contacts";
+type TabView = "overview" | "drivers" | "validation-queue" | "active-drivers" | "parents" | "children" | "bookings" | "cars" | "schools" | "holidays" | "inquiries" | "billing" | "logs" | "contacts";
 
 const TABS: { label: string; value: TabView }[] = [
   { label: "Overview", value: "overview" },
@@ -67,6 +68,7 @@ const TABS: { label: string; value: TabView }[] = [
   { label: "Bookings", value: "bookings" },
   { label: "Cars", value: "cars" },
   { label: "Schools", value: "schools" },
+  { label: "Holidays", value: "holidays" },
   { label: "Inquiries", value: "inquiries" },
   { label: "Billing", value: "billing" },
   { label: "Audit Logs", value: "logs" },
@@ -181,6 +183,7 @@ export default function AdminPage() {
         {activeTab === "cars" && !loading && <CarsTable rows={rows} />}
 
         {activeTab === "schools" && <SchoolsTab />}
+        {activeTab === "holidays" && <AdminHolidayManager />}
         {activeTab === "inquiries" && !loading && <InquiriesTable rows={rows} />}
         {activeTab === "billing" && <BillingTab />}
         {activeTab === "logs" && <LogsTab />}
@@ -313,6 +316,9 @@ function DriversTable({
               <TableCell>Email</TableCell>
               <TableCell>Phone</TableCell>
               <TableCell>Cars</TableCell>
+              <TableCell>Trips Done</TableCell>
+              <TableCell>Rating</TableCell>
+              <TableCell>Cancelled</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -331,6 +337,9 @@ function DriversTable({
               <TableCell sx={{ color: colors.mutedText }}>{d.email}</TableCell>
               <TableCell sx={{ color: colors.mutedText }}>{d.phoneNumber}</TableCell>
               <TableCell>{d.cars?.length ?? 0}</TableCell>
+              <TableCell>{d.completedTrips ?? 0}</TableCell>
+              <TableCell>{d.averageRating > 0 ? `${d.averageRating.toFixed(1)} (${d.ratingCount ?? 0})` : "—"}</TableCell>
+              <TableCell>{d.cancellations ?? 0}</TableCell>
               <TableCell>
                 <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
                   <Chip
@@ -541,8 +550,11 @@ function BookingsTable({ rows }: { rows: any[] }) {
             <TableCell>Booking ID</TableCell>
             <TableCell>Parent</TableCell>
             <TableCell>Driver</TableCell>
+            <TableCell>School</TableCell>
+            <TableCell>Duration</TableCell>
             <TableCell>Seats</TableCell>
             <TableCell>Trip Date</TableCell>
+            <TableCell>Admin Review</TableCell>
             <TableCell>Status</TableCell>
             <TableCell align="right">Detail</TableCell>
           </TableRow>
@@ -553,8 +565,13 @@ function BookingsTable({ rows }: { rows: any[] }) {
               <TableCell sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{b.bookingId}</TableCell>
               <TableCell>{b.parent?.fullName ?? "—"}</TableCell>
               <TableCell>{b.driver?.fullName ?? "—"}</TableCell>
+              <TableCell>{Array.from(new Set((b.children ?? []).map((child: any) => child.school).filter(Boolean))).join(", ") || "—"}</TableCell>
+              <TableCell sx={{ textTransform: "capitalize" }}>{(b.bookingDuration ?? (b.bookingType === "recurring" ? "semester" : "one_off")).replace("_", " ")}</TableCell>
               <TableCell>{b.seatsBooked}</TableCell>
               <TableCell sx={{ color: colors.mutedText }}>{new Date(b.tripDate).toLocaleDateString()}</TableCell>
+              <TableCell>
+                {b.adminReviewStatus ? b.adminReviewStatus.replace("_", " ") : "Legacy"}
+              </TableCell>
               <TableCell>
                 <Chip size="small" label={b.status} color={STATUS_COLORS[b.status] ?? "default"} variant="outlined" />
               </TableCell>

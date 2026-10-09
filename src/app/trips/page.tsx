@@ -67,8 +67,15 @@ interface IPendingBooking {
   _id: string;
   bookingId: string;
   status: string;
+  bookingType: string;
+  bookingDuration?: string;
   tripDate: string;
+  recurringMeta?: { startDate: string; endDate?: string | null };
   seatsBooked: number;
+  capacitySeats: number;
+  availableSeatsForSlot: number;
+  remainingSeats: number;
+  canAccept: boolean;
   children: { name: string; age: number; school: string; gender: string }[];
   parent: { fullName: string; phoneNumber: string } | null;
 }
@@ -238,6 +245,10 @@ export default function DriverTripsPage() {
   };
 
   const handleReject = async (bookingId: string) => {
+    if (!rejectReason.trim()) {
+      toast.error("Enter a reason before declining this request.");
+      return;
+    }
     setActioning(bookingId);
     try {
       await axios.patch(
@@ -355,6 +366,8 @@ export default function DriverTripsPage() {
                   {new Date(b.tripDate).toLocaleDateString("en-GB", {
                     weekday: "short", day: "numeric", month: "short",
                   })}
+                  {" · "}{(b.bookingDuration ?? (b.bookingType === "recurring" ? "semester" : "one_off")).replace("_", " ")}
+                  {b.recurringMeta?.endDate && ` · through ${new Date(b.recurringMeta.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`}
                   {" · "}
                   {b.seatsBooked} seat{b.seatsBooked !== 1 ? "s" : ""}
                   {" · "}ID: {b.bookingId}
@@ -362,6 +375,11 @@ export default function DriverTripsPage() {
               </div>
               <Chip label="Pending" size="small" sx={{ bgcolor: "#FFF3CD", color: "#856404", fontWeight: 700 }} />
             </PendingTop>
+
+            <SeatAvailability canAccept={b.canAccept}>
+              {b.availableSeatsForSlot} of {b.capacitySeats} seats open for this slot
+              <span>{b.seatsBooked} requested · {b.remainingSeats} left if accepted</span>
+            </SeatAvailability>
 
             <ChildPills>
               {b.children.map((c, i) => (
@@ -376,13 +394,13 @@ export default function DriverTripsPage() {
             {rejectingId === b._id && (
               <RejectForm>
                 <RejectInput
-                  placeholder="Reason (optional)"
+                  placeholder="Reason (required)"
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   autoFocus
                 />
                 <RejectConfirmBtn
-                  disabled={actioning === b._id}
+                  disabled={actioning === b._id || !rejectReason.trim()}
                   onClick={() => handleReject(b._id)}
                 >
                   {actioning === b._id
@@ -397,7 +415,7 @@ export default function DriverTripsPage() {
 
             <CardActions>
               <AcceptBtn
-                disabled={actioning === b._id || rejectingId === b._id}
+                disabled={actioning === b._id || rejectingId === b._id || !b.canAccept}
                 onClick={() => handleAccept(b._id)}
               >
                 {actioning === b._id ? (
@@ -819,6 +837,21 @@ const PendingTop = styled.div`
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+`;
+
+const SeatAvailability = styled.div<{ canAccept: boolean }>`
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0;
+  padding: 9px 11px;
+  border-left: 3px solid ${({ canAccept }) => canAccept ? "#2F7D54" : "#B83227"};
+  background: ${({ canAccept }) => canAccept ? "#F0F8F2" : "#FFF1EF"};
+  color: ${({ canAccept }) => canAccept ? "#245D3E" : "#8A2D25"};
+  font-size: 0.8rem;
+  font-weight: 700;
+  span { font-weight: 500; }
+  @media (max-width: 560px) { flex-direction: column; gap: 3px; }
 `;
 
 const ChildPills = styled.div`

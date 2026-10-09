@@ -32,6 +32,8 @@ interface IBooking {
   parent: { fullName: string } | null;
   children: IChild[];
   seatsBooked: number; tripDate: string; status: string; isDeleted?: boolean;
+  bookingDuration?: string;
+  adminReviewStatus?: string;
   tripDurationMins?: number;
   tripDistanceKm?: number;
   price?: number;
@@ -155,18 +157,6 @@ export default function BookingsPage() {
 
   const clearFilters = () => {
     setStatusFilter(""); setFromDate(""); setToDate(""); setPage(1);
-  };
-
-  const handleCancel = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (!confirm("Cancel this booking?")) return;
-    try {
-      const res = await axios.delete(`/api/bookings?bookingId=${id}`, { withCredentials: true });
-      if (res.data.success) {
-        toast.success("Booking cancelled.");
-        setBookings((prev) => prev.map((b) => b._id === id ? { ...b, status: "canceled", isDeleted: true } : b));
-      }
-    } catch { toast.error("Failed to cancel booking."); }
   };
 
   const isDriver = user?.userType === "driver";
@@ -315,7 +305,9 @@ export default function BookingsPage() {
           )}
           <BookingList>
             {bookings.map((b, i) => {
-              const meta = STATUS_META[b.status] ?? { bg: colors.lightBg, color: colors.mutedText, label: b.status };
+              const meta = isParent && b.adminReviewStatus === "awaiting_admin"
+                ? { bg: "#FFF8E1", color: "#876600", label: "Awaiting admin review" }
+                : STATUS_META[b.status] ?? { bg: colors.lightBg, color: colors.mutedText, label: b.status };
               const schools = Array.from(new Set(b.children.map((c) => c.school).filter(Boolean)));
               const primaryName = isDriver
                 ? (b.parent?.fullName ?? "Unknown Parent")
@@ -348,9 +340,6 @@ export default function BookingsPage() {
                   </CardMeta>
                   <CardBottom>
                     <BookingRef>{b.bookingId}</BookingRef>
-                    {isParent && !b.isDeleted && b.status === "pending" && (
-                      <CancelBtn onClick={(e) => handleCancel(e, b._id)}>Cancel</CancelBtn>
-                    )}
                   </CardBottom>
                 </BookingCard>
               );
