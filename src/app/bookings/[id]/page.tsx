@@ -78,6 +78,10 @@ interface IBooking {
   arrivedAt?: string | null;
   recurringMeta?: IRecurringMeta;
   status: string;
+  adminReviewStatus?: "awaiting_admin" | "approved" | "rejected";
+  adminReviewNote?: string;
+  totalAmount?: number;
+  dueDate?: string;
   createdAt?: string;
   tracking?: {
     currentLocation?: { coordinates: [number, number] };
@@ -173,6 +177,7 @@ export default function BookingDetailPage() {
   // Parent: cancel dialog
   const [cancelOpen, setCancelOpen] = useState(false);
   const [canceling, setCanceling]   = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   // Driver: reject dialog
   const [rejectOpen, setRejectOpen]   = useState(false);
@@ -249,16 +254,21 @@ export default function BookingDetailPage() {
   }, [userType, booking?.parent?._id]);
 
   const handleCancel = async () => {
+    if (!cancelReason.trim()) {
+      toast.error("Enter a reason before canceling this booking.");
+      return;
+    }
     setCanceling(true);
     try {
-      await axios.post(`/api/bookings/${id}/cancel`, {}, { withCredentials: true });
+      await axios.post(`/api/bookings/${id}/cancel`, { reason: cancelReason.trim() }, { withCredentials: true });
       toast.success("Booking canceled.");
-      setBooking((b) => b ? { ...b, status: "canceled" } : b);
+      setBooking((b) => b ? { ...b, status: "canceled", cancelReason: cancelReason.trim() } : b);
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Failed to cancel booking.");
     } finally {
       setCanceling(false);
       setCancelOpen(false);
+      setCancelReason("");
     }
   };
 
@@ -278,6 +288,10 @@ export default function BookingDetailPage() {
 
   /* ── Driver: reject ── */
   const handleReject = async () => {
+    if (!rejectReason.trim()) {
+      toast.error("Enter a reason before declining this request.");
+      return;
+    }
     setRejecting(true);
     try {
       await axios.patch(`/api/bookings/${id}/reject`, { reason: rejectReason }, { withCredentials: true });
@@ -333,7 +347,7 @@ export default function BookingDetailPage() {
   const isDriver     = userType === "driver";
   const isParent     = userType === "parent";
   const canAcceptReject = isDriver && booking.status === "pending";
-  const canCancel       = isParent && booking.status === "pending";
+  const canCancel       = isParent && !["completed", "canceled"].includes(booking.status);
   const canStart        = isDriver && booking.status === "accepted";
   // Show trip journey panel for driver on active bookings
   const showDriverJourney = isDriver && ["accepted", "in_progress", "completed"].includes(booking.status);
@@ -349,6 +363,37 @@ export default function BookingDetailPage() {
         <ArrowBackIcon sx={{ fontSize: 18 }} />
         Back to Bookings
       </BackBtn>
+
+      {isParent && booking.adminReviewStatus === "awaiting_admin" && (
+        <ParentStatusBanner>
+          <span>🕐</span>
+          <div>
+            <ParentStatusTitle>Waiting for admin review</ParentStatusTitle>
+            <ParentStatusSub>Your request is not scheduled yet. We&apos;ll update you after the booking and billing details are reviewed.</ParentStatusSub>
+          </div>
+        </ParentStatusBanner>
+      )}
+      {isParent && booking.adminReviewStatus === "approved" && booking.status === "pending" && (
+        <ParentStatusBanner arrived>
+          <span>✓</span>
+          <div>
+            <ParentStatusTitle>Approved; waiting for driver</ParentStatusTitle>
+            <ParentStatusSub>
+              {booking.totalAmount != null ? `Total KES ${booking.totalAmount.toLocaleString()}` : ""}
+              {booking.dueDate ? ` · Due ${new Date(booking.dueDate).toLocaleDateString("en-GB")}` : ""}
+            </ParentStatusSub>
+          </div>
+        </ParentStatusBanner>
+      )}
+      {isParent && booking.adminReviewStatus === "rejected" && (
+        <ParentStatusBanner>
+          <span>!</span>
+          <div>
+            <ParentStatusTitle>Request not approved</ParentStatusTitle>
+            <ParentStatusSub>{booking.adminReviewNote || "Contact support for more information."}</ParentStatusSub>
+          </div>
+        </ParentStatusBanner>
+      )}
 
       {/* ── Driver Action Panel — primary CTA at the top ── */}
       {isDriver && (
@@ -830,7 +875,7 @@ export default function BookingDetailPage() {
       {hasStickyBar && (
         <StickyBar>
           <StickyBarInner>
-            <StickyHint>Only pending bookings can be cancelled</StickyHint>
+            <StickyHint>Enter a reason when canceling this booking</StickyHint>
             <StickyCancelBtn onClick={() => setCancelOpen(true)}>
               Cancel Booking
             </StickyCancelBtn>
@@ -843,9 +888,18 @@ export default function BookingDetailPage() {
         <DialogTitle sx={{ fontWeight: 700 }}>Cancel this booking?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will cancel booking <strong>{booking.bookingId}</strong>. The driver will be notified.
-            This action cannot be undone.
+            The other participant will be notified. Add a reason to continue.
           </DialogContentText>
+          <TextField
+            label="Cancellation reason"
+            value={cancelReason}
+            onChange={(event) => setCancelReason(event.target.value)}
+            multiline
+            minRows={2}
+            fullWidth
+            required
+            sx={{ mt: 2 }}
+          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setCancelOpen(false)} disabled={canceling}>Keep it</Button>
@@ -853,7 +907,7 @@ export default function BookingDetailPage() {
             onClick={handleCancel}
             color="error"
             variant="contained"
-            disabled={canceling}
+            disabled={canceling || !cancelReason.trim()}
             sx={{ borderRadius: "50px", fontWeight: 700 }}
           >
             {canceling ? "Canceling…" : "Yes, Cancel"}
@@ -866,10 +920,10 @@ export default function BookingDetailPage() {
         <DialogTitle sx={{ fontWeight: 700 }}>Decline this trip request?</DialogTitle>
         <DialogContent sx={{ pt: "12px !important" }}>
           <DialogContentText sx={{ mb: 2 }}>
-            The parent will receive an SMS notification. You can optionally provide a reason.
+            The parent will receive an SMS notification with your reason.
           </DialogContentText>
           <TextField
-            label="Reason (optional)"
+            label="Reason (required)"
             placeholder="e.g. Route not available, fully booked…"
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
@@ -885,7 +939,7 @@ export default function BookingDetailPage() {
             onClick={handleReject}
             color="error"
             variant="contained"
-            disabled={rejecting}
+            disabled={rejecting || !rejectReason.trim()}
             sx={{ borderRadius: "50px", fontWeight: 700 }}
           >
             {rejecting ? "Declining…" : "Yes, Decline"}

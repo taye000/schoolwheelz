@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 import { IChild } from "../../types/usertype";
 
 export type BookingType = "one_time" | "recurring";
+export type BookingDuration = "semester" | "month" | "week" | "one_off";
 export type TripDirection = "morning" | "evening" | "both";
 export type BookingStatus =
   | "pending"
@@ -10,6 +11,7 @@ export type BookingStatus =
   | "in_progress"
   | "completed"
   | "canceled";
+export type AdminReviewStatus = "awaiting_admin" | "approved" | "rejected";
 
 export interface IBookedChild {
   childRef?: mongoose.Types.ObjectId; // ref to parent.children subdoc _id
@@ -33,6 +35,16 @@ export interface IBooking extends Document {
   bookingId: string;
   requestKey?: string;
   bookingType: BookingType;
+  bookingDuration?: BookingDuration;
+  adminReviewStatus?: AdminReviewStatus;
+  adminReviewNote?: string;
+  totalAmount?: number;
+  amountIncurred?: number;
+  dueDate?: Date;
+  canceledAt?: Date;
+  canceledBy?: mongoose.Types.ObjectId;
+  canceledByType?: "parent" | "driver" | "admin" | "system";
+  cancelReason?: string;
   /** Link to Schedule if this trip was auto-generated */
   schedule?: mongoose.Types.ObjectId;
   driver: mongoose.Types.ObjectId;
@@ -121,6 +133,22 @@ const BookingSchema: Schema = new Schema(
       enum: ["one_time", "recurring"],
       default: "one_time",
     },
+    bookingDuration: {
+      type: String,
+      enum: ["semester", "month", "week", "one_off"],
+    },
+    adminReviewStatus: {
+      type: String,
+      enum: ["awaiting_admin", "approved", "rejected"],
+    },
+    adminReviewNote: { type: String },
+    totalAmount: { type: Number, min: 0 },
+    amountIncurred: { type: Number, min: 0, default: 0 },
+    dueDate: { type: Date },
+    canceledAt: { type: Date },
+    canceledBy: { type: Schema.Types.ObjectId },
+    canceledByType: { type: String, enum: ["parent", "driver", "admin", "system"] },
+    cancelReason: { type: String },
     schedule: { type: Schema.Types.ObjectId, ref: "Schedule" },
     driver: { type: Schema.Types.ObjectId, ref: "Driver", required: true },
     parent: { type: Schema.Types.ObjectId, ref: "Parent", required: true },

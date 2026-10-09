@@ -8,7 +8,7 @@ import Driver from "@/models/DriversRegistration";
 import Parent from "@/models/ParentsRegistration";
 import { getAuthUser, AuthenticatedUser } from "@/utils/authApp";
 import { generateBookingId } from "@/utils/generateBookingID";
-import { createNotification } from "@/utils/notify";
+import { bookingsShareTripSlot } from "@/utils/bookingSlots";
 
 function normalizeBookingLocation(value: any) {
   if (
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       seatsBooked,
       tripDate,
       bookingType = "one_time",
+      bookingDuration,
       direction = "morning",
       returnTime,
       recurringDays,
@@ -57,6 +58,13 @@ export async function POST(req: NextRequest) {
       pickupLocation,
       dropoffLocation,
     } = await req.json();
+    const resolvedBookingDuration = bookingDuration ?? (bookingType === "recurring" ? "semester" : "one_off");
+    if (!["semester", "month", "week", "one_off"].includes(resolvedBookingDuration)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid booking duration." },
+        { status: 400 },
+      );
+    }
 
     const driver = await Driver.findById(driverId);
     if (!driver)
@@ -170,6 +178,7 @@ export async function POST(req: NextRequest) {
           driverId: driver._id.toString(),
           childIds: uniqueChildIds.sort(),
           bookingType,
+          bookingDuration: resolvedBookingDuration,
           direction,
           startDate,
           endDate,
@@ -187,7 +196,9 @@ export async function POST(req: NextRequest) {
         children: bookedChildren,
         seatsBooked: bookedChildren.length,
         bookingType: "recurring",
+        bookingDuration: resolvedBookingDuration,
         requestKey,
+        adminReviewStatus: "awaiting_admin",
         direction,
         tripDate: firstDate,
         status: "pending",
@@ -205,16 +216,6 @@ export async function POST(req: NextRequest) {
       });
 
       await booking.populate([{ path: "driver" }, { path: "parent" }]);
-      createNotification({
-        userId: driver._id.toString(),
-        userType: "driver",
-        type: "booking_new",
-        title: "New Booking Request",
-        body: `${user.fullName} has sent a recurring booking request.`,
-        href: `/trips`,
-        resourceId: booking._id.toString(),
-        resourceType: "booking",
-      });
       return NextResponse.json(
         { success: true, data: booking },
         { status: 201 },
@@ -253,6 +254,7 @@ export async function POST(req: NextRequest) {
         driverId: driver._id.toString(),
         childIds: uniqueChildIds.sort(),
         bookingType,
+        bookingDuration: resolvedBookingDuration,
         direction,
         tripDate: requestedTripDate.toISOString(),
         returnTime: returnTime || null,
@@ -265,7 +267,9 @@ export async function POST(req: NextRequest) {
       children: bookedChildren,
       seatsBooked: bookedChildren.length,
       bookingType: "one_time",
+      bookingDuration: resolvedBookingDuration,
       requestKey,
+      adminReviewStatus: "awaiting_admin",
       direction,
       tripDate: requestedTripDate,
       returnTime: returnTime || null,
@@ -274,16 +278,6 @@ export async function POST(req: NextRequest) {
     });
 
     await booking.populate([{ path: "driver" }, { path: "parent" }]);
-    createNotification({
-      userId: driver._id.toString(),
-      userType: "driver",
-      type: "booking_new",
-      title: "New Booking Request",
-      body: `${user.fullName} has sent a booking request.`,
-      href: `/trips`,
-      resourceId: booking._id.toString(),
-      resourceType: "booking",
-    });
     return NextResponse.json({ success: true, data: booking }, { status: 201 });
   } catch (error) {
     if ((error as any)?.code === 11000) {
@@ -321,6 +315,17 @@ export async function GET(req: NextRequest) {
           { success: false, message: "Booking not found" },
           { status: 404 },
         );
+      const isOwnerParent = user.userType === "parent" && booking.parent?._id?.toString() === user.id;
+      const isAssignedDriver = user.userType === "driver" && booking.driver?._id?.toString() === user.id;
+      const driverCanView =
+        isAssignedDriver &&
+        (!booking.adminReviewStatus || booking.adminReviewStatus === "approved");
+      if (user.userType !== "admin" && !isOwnerParent && !driverCanView) {
+        return NextResponse.json(
+          { success: false, message: "Booking not found" },
+          { status: 404 },
+        );
+      }
       return NextResponse.json({ success: true, data: booking });
     }
 
@@ -340,6 +345,10 @@ export async function GET(req: NextRequest) {
       }
     } else if (user.userType === "driver") {
       baseFilter.driver = new mongoose.Types.ObjectId(user.id);
+      baseFilter.$or = [
+        { adminReviewStatus: "approved" },
+        { adminReviewStatus: { $exists: false } },
+      ];
     } else {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
@@ -377,9 +386,39 @@ export async function GET(req: NextRequest) {
       .skip((page - 1) * limit)
       .limit(limit);
 
+    let responseBookings = bookings;
+    if (user.userType === "driver") {
+      const driver = await Driver.findById(user.id).select("cars");
+      const activeCar = driver?.cars.find((car: any) => car.isActive);
+      const reservations = await Booking.find({
+        driver: user.id,
+        status: { $in: ["accepted", "in_progress"] },
+        isDeleted: false,
+      }).select("bookingType tripDate recurringMeta direction returnTime seatsBooked");
+
+      responseBookings = bookings.map((booking: any) => {
+        const committedSeats = reservations
+          .filter((reservation: any) =>
+            reservation._id.toString() !== booking._id.toString() &&
+            bookingsShareTripSlot(booking, reservation),
+          )
+          .reduce((total: number, reservation: any) => total + (reservation.seatsBooked ?? 0), 0);
+        const capacitySeats = activeCar?.availableSeats ?? 0;
+        const availableSeatsForSlot = Math.max(0, capacitySeats - committedSeats);
+        return {
+          ...booking.toObject(),
+          capacitySeats,
+          committedSeats,
+          availableSeatsForSlot,
+          remainingSeats: Math.max(0, availableSeatsForSlot - (booking.seatsBooked ?? 0)),
+          canAccept: (booking.seatsBooked ?? 0) <= availableSeatsForSlot,
+        };
+      }) as any;
+    }
+
     return NextResponse.json({
       success: true,
-      data: bookings,
+      data: responseBookings,
       pagination: { total, pages, page, limit },
     });
   } catch (error) {
@@ -438,9 +477,16 @@ export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const bookingId = searchParams.get("bookingId");
+    const body = await req.json().catch(() => ({}));
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
     if (!bookingId)
       return NextResponse.json(
         { success: false, message: "bookingId required" },
+        { status: 400 },
+      );
+    if (!reason)
+      return NextResponse.json(
+        { success: false, message: "A cancellation reason is required." },
         { status: 400 },
       );
 
@@ -457,9 +503,13 @@ export async function DELETE(req: NextRequest) {
         { status: 403 },
       );
 
-    booking.isDeleted = true;
+    booking.status = "canceled";
+    booking.canceledAt = new Date();
+    booking.canceledBy = user.id as any;
+    booking.canceledByType = "parent";
+    booking.cancelReason = reason;
     await booking.save();
-    return NextResponse.json({ success: true, message: "Booking cancelled" });
+    return NextResponse.json({ success: true, data: booking, message: "Booking cancelled" });
   } catch (error) {
     console.error(error);
     return NextResponse.json(

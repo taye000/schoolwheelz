@@ -14,8 +14,16 @@ export async function PATCH(
   await dbConnect();
   const user = getAuthUser(req);
   if (user instanceof NextResponse) return user;
+  if (user.userType !== "parent" && user.userType !== "driver") {
+    return NextResponse.json({ success: false, message: "Only parents and drivers can cancel bookings." }, { status: 403 });
+  }
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (!reason) {
+      return NextResponse.json({ success: false, message: "A reason is required to cancel a booking." }, { status: 400 });
+    }
     const booking = await Booking.findById(params.id).populate("driver");
     if (!booking)
       return NextResponse.json(
@@ -50,7 +58,14 @@ export async function PATCH(
     }
 
     booking.status = "canceled";
+    booking.canceledAt = new Date();
+    booking.canceledBy = user.id as any;
+    booking.canceledByType = user.userType;
+    booking.cancelReason = reason;
     await booking.save();
+    if (user.userType === "driver") {
+      await Driver.findByIdAndUpdate(user.id, { $inc: { cancellations: 1 } });
+    }
 
     log({
       actorId: user.id,
@@ -59,7 +74,7 @@ export async function PATCH(
       action: "status_change",
       resource: "Booking",
       resourceId: booking._id.toString(),
-      detail: `Booking ${booking.bookingId} cancelled by ${user.userType}`,
+      detail: `Booking ${booking.bookingId} cancelled by ${user.userType}: ${reason}`,
     });
 
     // Notify the other party
@@ -69,7 +84,7 @@ export async function PATCH(
         userType: "driver",
         type: "booking_cancelled",
         title: "Booking Cancelled",
-        body: `${user.fullName} has cancelled their booking.`,
+        body: `${user.fullName} cancelled their booking: ${reason}`,
         href: `/trips`,
         resourceId: booking._id.toString(),
         resourceType: "booking",
@@ -80,7 +95,7 @@ export async function PATCH(
         userType: "parent",
         type: "booking_cancelled",
         title: "Booking Cancelled",
-        body: `Your driver has cancelled booking ${booking.bookingId}.`,
+        body: `Your driver cancelled booking ${booking.bookingId}: ${reason}`,
         href: `/bookings/${booking._id}`,
         resourceId: booking._id.toString(),
         resourceType: "booking",

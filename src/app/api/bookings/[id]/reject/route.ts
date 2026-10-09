@@ -10,7 +10,7 @@ import { sendSMS, SmsTemplates } from "@/utils/sms";
 /**
  * PATCH /api/bookings/[id]/reject
  * Driver declines a pending booking request.
- * Status → "canceled". Parent receives an SMS with an optional reason.
+ * Status → "canceled". Parent receives an SMS with the driver's reason.
  */
 export async function PATCH(
   req: NextRequest,
@@ -41,6 +41,13 @@ export async function PATCH(
         { status: 403 },
       );
 
+    if (booking.adminReviewStatus && booking.adminReviewStatus !== "approved") {
+      return NextResponse.json(
+        { success: false, message: "This booking is still awaiting admin review." },
+        { status: 409 },
+      );
+    }
+
     if (booking.status !== "pending")
       return NextResponse.json(
         {
@@ -50,10 +57,22 @@ export async function PATCH(
         { status: 400 },
       );
 
-    const { reason } = await req.json().catch(() => ({ reason: undefined }));
+    const body = await req.json().catch(() => ({}));
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (!reason) {
+      return NextResponse.json(
+        { success: false, message: "A reason is required to decline a booking." },
+        { status: 400 },
+      );
+    }
 
     booking.status = "canceled";
+    booking.canceledAt = new Date();
+    booking.canceledBy = user.id as any;
+    booking.canceledByType = "driver";
+    booking.cancelReason = reason;
     await booking.save();
+    await Driver.findByIdAndUpdate(user.id, { $inc: { cancellations: 1 } });
 
     const [driver, parent] = await Promise.all([
       Driver.findById(user.id, "fullName"),
